@@ -1,110 +1,157 @@
 
-import React from 'react';
-import { ArrowRight, Play, Sparkles } from 'lucide-react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { ArrowRight, Sparkles, X, Play } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Hero: React.FC = () => {
-  const bookingUrl = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1yhkKwB4s2LYWJBw0qFheEvjNwgyGiXgYg8KZsoaMbPndGdLhpYmBJKPayNG6_PdtiIe-xBuDW";
+  const [isVideoOpen, setIsVideoOpen] = useState(false);
+  const [videoUrl, setVideoUrl] = useState("https://drive.google.com/file/d/1m8nUWm5US-8l63U0lolu0JZBK7OVmX0k/view?usp=sharing");
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.hero_video_url) {
+            setVideoUrl(data.hero_video_url);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch settings', err);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.2,
+        delayChildren: 0.5
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        duration: 1.2,
+        ease: [0.22, 1, 0.36, 1]
+      }
+    }
+  };
 
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center px-4 md:px-8 overflow-hidden bg-clarisma-red">
-      {/* Immersive Background */}
+    <section className="relative min-h-screen flex flex-col items-center justify-center px-6 overflow-hidden bg-clarisma-red">
+      {/* Subtle Atmospheric Background */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-clarisma-gold/10 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-clarisma-orange/10 rounded-full blur-[150px]" />
-        
-        {/* Grid Pattern Overlay */}
-        <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100vw] h-[100vh] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-from)_0%,_transparent_70%)] from-clarisma-gold/10 to-transparent opacity-50" />
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-[0.03] pointer-events-none" />
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 max-w-6xl w-full flex flex-col items-center text-center">
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="relative z-10 max-w-5xl w-full flex flex-col items-center text-center"
+      >
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-clarisma-gold text-xs font-bold uppercase tracking-[0.3em] mb-8 backdrop-blur-sm"
+          variants={itemVariants}
+          className="flex items-center gap-3 mb-12"
         >
-          <Sparkles size={14} className="animate-pulse" />
-          The Future of Leadership
+          <div className="h-[1px] w-12 bg-clarisma-gold/30" />
+          <span className="text-clarisma-gold text-[10px] font-black uppercase tracking-[0.6em]">
+            Est. 2024
+          </span>
+          <div className="h-[1px] w-12 bg-clarisma-gold/30" />
         </motion.div>
 
         <motion.h1 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-          className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-white leading-[1.1] mb-8 select-none"
+          variants={itemVariants}
+          className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter text-white leading-[0.9] mb-10"
         >
           OWN YOUR <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-clarisma-gold via-white to-clarisma-gold bg-[length:200%_auto] animate-shimmer">
-            NARRATIVE.
-          </span>
+          <span className="italic font-light text-clarisma-gold/90">NARRATIVE.</span>
         </motion.h1>
 
         <motion.p 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 1 }}
-          className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-12 leading-relaxed font-light tracking-wide"
+          variants={itemVariants}
+          className="text-lg md:text-xl text-slate-400 max-w-xl mx-auto mb-16 leading-relaxed font-light tracking-wide"
         >
-          Empowering ambitious individuals to lead with <span className="text-white font-medium italic">clarity</span>, <span className="text-white font-medium italic">confidence</span>, and <span className="text-white font-medium italic">authentic authority</span>.
+          Empowering high-impact leaders to command their space with unshakeable clarity and authentic authority.
         </motion.p>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.8 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-6"
-        >
-          <a
-            href={bookingUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group relative px-10 py-5 bg-white text-clarisma-red rounded-full font-black text-xl hover:bg-clarisma-gold hover:text-clarisma-red transition-all duration-500 flex items-center gap-3 shadow-2xl overflow-hidden"
+        <motion.div variants={itemVariants}>
+          <button
+            onClick={() => setIsVideoOpen(true)}
+            className="group relative inline-flex items-center gap-6 px-12 py-6 bg-transparent border border-white/10 rounded-full text-white font-bold text-lg hover:border-clarisma-gold/50 hover:bg-white/5 transition-all duration-700 overflow-hidden"
           >
-            <span className="relative z-10">Get Started Now</span>
-            <ArrowRight className="w-6 h-6 relative z-10 group-hover:translate-x-2 transition-transform duration-500" />
-          </a>
-          
-          <button className="px-10 py-5 rounded-full font-bold text-xl text-white border border-white/20 hover:bg-white/10 hover:border-white/40 transition-all flex items-center gap-3 group backdrop-blur-md">
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-all duration-500">
-               <Play size={16} className="ml-1 fill-white text-white" />
+            <span className="relative z-10 tracking-widest uppercase text-sm">Watch Introductory Video</span>
+            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-clarisma-gold group-hover:text-clarisma-red transition-all duration-500">
+              <Play size={18} className="ml-1" />
             </div>
-            Watch Showreel
           </button>
         </motion.div>
-      </div>
+      </motion.div>
 
-      {/* Scroll Indicator */}
+      {/* Minimal Scroll Indicator */}
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 1.5, duration: 1 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4"
+        transition={{ delay: 2.5, duration: 1.5 }}
+        className="absolute bottom-12 left-1/2 -translate-x-1/2"
       >
-        <span className="text-[10px] uppercase tracking-[0.4em] text-white/30 font-bold">Discover More</span>
-        <div className="w-[1px] h-16 bg-gradient-to-b from-clarisma-gold/50 to-transparent animate-bounce" />
+        <div className="w-[1px] h-12 bg-gradient-to-b from-clarisma-gold/40 to-transparent" />
       </motion.div>
 
-      {/* Abstract Floating Elements */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <motion.div 
-          animate={{ 
-            y: [0, -20, 0],
-            rotate: [0, 5, 0]
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[20%] right-[10%] w-64 h-64 border border-white/5 rounded-[3rem] rotate-12" 
-        />
-        <motion.div 
-          animate={{ 
-            y: [0, 20, 0],
-            rotate: [0, -5, 0]
-          }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute bottom-[20%] left-[5%] w-48 h-48 border border-white/5 rounded-full" 
-        />
-      </div>
+      {/* Video Modal */}
+      <AnimatePresence>
+        {isVideoOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+          >
+            <button
+              onClick={() => setIsVideoOpen(false)}
+              className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors"
+            >
+              <X size={32} />
+            </button>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-5xl aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
+            >
+              {videoUrl.includes('drive.google.com') ? (
+                <iframe
+                  src={videoUrl.replace(/\/view.*/, '/preview')}
+                  className="w-full h-full border-0"
+                  allow="autoplay"
+                  allowFullScreen
+                ></iframe>
+              ) : (
+                <video
+                  src={videoUrl}
+                  controls
+                  autoPlay
+                  className="w-full h-full object-contain"
+                >
+                  Your browser does not support the video tag.
+                </video>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 };

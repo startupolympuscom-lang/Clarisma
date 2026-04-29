@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface NavbarProps {
   onNavigate: (destination: string) => void;
@@ -13,7 +14,8 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
+      // Disappear if scrolled more than 20px
+      setScrolled(window.scrollY > 20);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -40,9 +42,19 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
   const bookingUrl = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1yhkKwB4s2LYWJBw0qFheEvjNwgyGiXgYg8KZsoaMbPndGdLhpYmBJKPayNG6_PdtiIe-xBuDW";
 
   return (
-    <nav className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-5xl transition-all duration-300 ${
-      scrolled || mobileMenuOpen ? 'top-4' : 'top-6'
-    }`}>
+    <motion.nav 
+      initial={{ y: 0, x: "-50%", opacity: 1 }}
+      animate={{ 
+        y: scrolled && !mobileMenuOpen ? -120 : 0,
+        x: "-50%",
+        opacity: scrolled && !mobileMenuOpen ? 0 : 1
+      }}
+      transition={{ 
+        duration: 0.4, 
+        ease: [0.16, 1, 0.3, 1] 
+      }}
+      className="fixed top-6 left-1/2 z-50 w-[95%] max-w-5xl"
+    >
       <div className={`bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-6 py-3 md:py-4 flex items-center justify-between transition-all duration-300 shadow-2xl ${
         mobileMenuOpen ? 'rounded-3xl' : ''
       }`}>
@@ -100,32 +112,39 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
       </div>
 
       {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="mt-2 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:hidden animate-in fade-in slide-in-from-top-4 shadow-2xl">
-          <div className="flex flex-col gap-4">
-            {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                onClick={(e) => handleLinkClick(e, link)}
-                className="text-lg font-bold text-slate-200 hover:text-clarisma-gold"
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="mt-2 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:hidden shadow-2xl"
+          >
+            <div className="flex flex-col gap-4">
+              {navLinks.map((link) => (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  onClick={(e) => handleLinkClick(e, link)}
+                  className="text-lg font-bold text-slate-200 hover:text-clarisma-gold"
+                >
+                  {link.name}
+                </a>
+              ))}
+              <a 
+                href={bookingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
+                className="bg-clarisma-red text-white text-center py-3 rounded-xl font-bold mt-2 shadow-md border border-white/10"
               >
-                {link.name}
+                Book Consultation
               </a>
-            ))}
-            <a 
-              href={bookingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setMobileMenuOpen(false)}
-              className="bg-clarisma-red text-white text-center py-3 rounded-xl font-bold mt-2 shadow-md border border-white/10"
-            >
-              Book Consultation
-            </a>
-          </div>
-        </div>
-      )}
-    </nav>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.nav>
   );
 };
 

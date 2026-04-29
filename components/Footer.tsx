@@ -24,6 +24,7 @@ const Footer: React.FC = () => {
               <li><a href="#services" className="hover:text-clarisma-gold transition-colors">Services</a></li>
               <li><a href="#about" className="hover:text-clarisma-gold transition-colors">About</a></li>
               <li><a href="#contact" className="hover:text-clarisma-gold transition-colors">Contact</a></li>
+              <li><button onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'admin' }))} className="hover:text-clarisma-gold transition-colors">Admin Login</button></li>
             </ul>
           </div>
           <div>

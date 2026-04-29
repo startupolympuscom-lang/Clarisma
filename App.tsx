@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import ServicesBento from './components/ServicesBento';
@@ -11,9 +12,49 @@ import Contact from './components/Contact';
 import Footer from './components/Footer';
 import FounderPage from './components/FounderPage';
 import RetreatsPage from './components/RetreatsPage';
+import AdminPage from './components/AdminPage';
+
+// Scroll to top on route change
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+};
+
+// Handle hash links
+const HashLinkHandler = () => {
+  const { hash, pathname } = useLocation();
+  useEffect(() => {
+    if (hash && pathname === '/') {
+      const element = document.querySelector(hash);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    }
+  }, [hash, pathname]);
+  return null;
+};
+
+const HomePage: React.FC<{ onNavigate: (dest: string) => void }> = ({ onNavigate }) => (
+  <main className="flex flex-col gap-24 md:gap-32 pb-20">
+    <Hero />
+    <About onNavigate={onNavigate} />
+    <ServicesBento onNavigate={onNavigate} />
+    <TargetAudience />
+    <SpecializedPrograms />
+    <Process />
+    <Testimonials />
+    <Contact />
+  </main>
+);
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'home' | 'founder' | 'retreats'>('home');
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Intro Music Effect
   useEffect(() => {
@@ -48,27 +89,29 @@ const App: React.FC = () => {
 
   const handleNavigation = (destination: string) => {
     if (destination === 'founder') {
-      setCurrentPage('founder');
-      window.scrollTo(0, 0);
+      navigate('/founder');
     } else if (destination === 'retreats') {
-      setCurrentPage('retreats');
-      window.scrollTo(0, 0);
-    } else {
-      setCurrentPage('home');
-      // If destination is a hash, scroll to it after a brief delay to allow render
-      if (destination.startsWith('#')) {
-        setTimeout(() => {
-          const element = document.querySelector(destination);
-          element?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+      navigate('/retreats');
+    } else if (destination === 'admin') {
+      navigate('/admin');
+    } else if (destination === 'home') {
+      navigate('/');
+    } else if (destination.startsWith('#')) {
+      if (location.pathname !== '/') {
+        navigate('/' + destination);
       } else {
-        window.scrollTo(0, 0);
+        const element = document.querySelector(destination);
+        element?.scrollIntoView({ behavior: 'smooth' });
       }
+    } else {
+      navigate('/');
     }
   };
 
   return (
     <div className="min-h-screen bg-clarisma-red text-white selection:bg-clarisma-gold selection:text-clarisma-red overflow-x-hidden">
+        <ScrollToTop />
+        <HashLinkHandler />
         {/* Dynamic Background Gradients */}
         <div className="fixed inset-0 z-0 pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-clarisma-gold/10 rounded-full blur-[120px]" />
@@ -80,26 +123,19 @@ const App: React.FC = () => {
             onNavigate={handleNavigation}
           />
           
-          {currentPage === 'home' && (
-            <main className="flex flex-col gap-24 md:gap-32 pb-20">
-              <Hero />
-              <About onNavigate={handleNavigation} />
-              <ServicesBento onNavigate={handleNavigation} />
-              <TargetAudience />
-              <SpecializedPrograms />
-              <Process />
-              <Testimonials />
-              <Contact />
-            </main>
-          )}
-          
-          {currentPage === 'founder' && (
-            <FounderPage onBack={() => handleNavigation('home')} />
-          )}
-
-          {currentPage === 'retreats' && (
-             <RetreatsPage onBack={() => handleNavigation('home')} />
-          )}
+          <Routes>
+            <Route path="/" element={<HomePage onNavigate={handleNavigation} />} />
+            <Route path="/founder" element={<FounderPage onBack={() => navigate('/')} />} />
+            <Route path="/retreats" element={
+              <RetreatsPage 
+                onBack={() => navigate('/')} 
+                onAdminAccess={() => navigate('/admin')}
+              />
+            } />
+            <Route path="/admin" element={<AdminPage onBack={() => navigate('/')} />} />
+            {/* Fallback to home */}
+            <Route path="*" element={<HomePage onNavigate={handleNavigation} />} />
+          </Routes>
           
           <Footer />
         </div>
