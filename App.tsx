@@ -12,7 +12,7 @@ import Contact from './components/Contact';
 import Footer from './components/Footer';
 import FounderPage from './components/FounderPage';
 import RetreatsPage from './components/RetreatsPage';
-import AdminPage from './components/AdminPage';
+import AdminDashboard from './components/AdminDashboard';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -132,7 +132,7 @@ const App: React.FC = () => {
                 onAdminAccess={() => navigate('/admin')}
               />
             } />
-            <Route path="/admin" element={<AdminPage onBack={() => navigate('/')} />} />
+            <Route path="/admin" element={<AdminDashboard onBack={() => navigate('/')} />} />
             {/* Fallback to home */}
             <Route path="*" element={<HomePage onNavigate={handleNavigation} />} />
           </Routes>
