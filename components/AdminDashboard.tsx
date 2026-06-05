@@ -123,17 +123,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         body: JSON.stringify({ pseudo, password })
       });
 
-      if (res.ok) {
-        const data = await res.json();
+      const data = await res.json();
+      console.log("[v0] Login response:", res.status, data);
+
+      if (res.ok && data.token) {
         localStorage.setItem('adminToken', data.token);
         setIsAuthenticated(true);
         setPseudo('');
         setPassword('');
         await loadAllData();
       } else {
-        setLoginError('Invalid credentials');
+        setLoginError(data.error || 'Invalid credentials');
       }
     } catch (err) {
+      console.log("[v0] Login error:", err);
       setLoginError('Login failed. Please try again.');
     } finally {
       setLoading(false);
