@@ -62,6 +62,37 @@ async function initDB() {
     `);
     
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        price VARCHAR(100) NOT NULL,
+        image_url VARCHAR(255) NOT NULL,
+        download_url TEXT NOT NULL,
+        category VARCHAR(100) DEFAULT 'Digital',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    
+    // Migration: Update categories and add the Legal Storytelling Whitepaper if missing
+    const paperCount = await pool.query('SELECT COUNT(*) FROM products WHERE title = $1', ['Legal Storytelling Whitepaper']);
+    if (parseInt(paperCount.rows[0].count) === 0) {
+      // Clear old seed data if it was using old categories
+      await pool.query("DELETE FROM products WHERE category IN ('E-Book', 'Toolkit', 'Guide')");
+      
+      await pool.query(`
+        INSERT INTO products (title, description, price, image_url, download_url, category)
+        VALUES 
+        ('Legal Storytelling Whitepaper', 'A comprehensive guide for lawyers on using narrative techniques to build more persuasive cases and command the courtroom.', '49.00', 'https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&q=80', '#', 'Intelligence Library'),
+        ('The Charisma Blueprint', 'A defining e-book on reclaiming your professional narrative and building unshakeable confidence.', '29.99', 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80', '#', 'Intelligence Library'),
+        ('Advocacy Toolkit', 'Essential templates, checklists, and frameworks for transitioning research into impactful public advocacy.', '45.00', 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&q=80', '#', 'Professional Toolkit'),
+        ('Academic Impact Guide', 'A step-by-step guide to managing your PhD research while building a strategic public profile.', '35.00', 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&q=80', '#', 'Intelligence Library'),
+        ('Confidence Affirmation Audio', 'A guided audio experience designed to program your mindset for authority and presence before high-stakes talks.', '19.99', 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&q=80', '#', 'Clarisma Collection'),
+        ('Maximum Impact Bundle', 'Includes the Intelligence Library and the Professional Toolkit at a curated price for total career transformation.', '99.00', 'https://images.unsplash.com/photo-1512486130939-2c4f79935e4f?auto=format&fit=crop&q=80', '#', 'Curated Experience Bundles')
+      `);
+    }
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS settings (
         key VARCHAR(255) PRIMARY KEY,
         value TEXT NOT NULL
@@ -194,6 +225,66 @@ app.delete('/api/retreats/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Retreat not found' });
     }
     res.json({ message: 'Retreat deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get all products
+app.get('/api/products', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM products ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create a product
+app.post('/api/products', authenticateToken, async (req, res) => {
+  const { title, description, price, image_url, download_url, category } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO products (title, description, price, image_url, download_url, category) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [title, description, price, image_url, download_url, category || 'Digital']
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update a product
+app.put('/api/products/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { title, description, price, image_url, download_url, category } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE products SET title = $1, description = $2, price = $3, image_url = $4, download_url = $5, category = $6 WHERE id = $7 RETURNING *',
+      [title, description, price, image_url, download_url, category, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete a product
+app.delete('/api/products/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM products WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json({ message: 'Product deleted successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

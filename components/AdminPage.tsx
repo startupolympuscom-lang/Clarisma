@@ -35,6 +35,16 @@ interface Reservation {
   created_at: string;
 }
 
+interface Product {
+  id: number;
+  title: string;
+  description: string;
+  price: string;
+  image_url: string;
+  download_url: string;
+  category: string;
+}
+
 interface FormField {
   id: string;
   label: string;
@@ -53,18 +63,24 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [tagsInput, setTagsInput] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'retreats' | 'settings' | 'reservations'>('retreats');
+  const [activeTab, setActiveTab] = useState<'retreats' | 'settings' | 'reservations' | 'shop'>('retreats');
   const [settings, setSettings] = useState<{hero_video_url?: string}>({});
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [customFields, setCustomFields] = useState<FormField[]>([]);
   const [viewingAnswers, setViewingAnswers] = useState<Reservation | null>(null);
 
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isEditingProduct, setIsEditingProduct] = useState<number | null>(null);
+  const [editProductForm, setEditProductForm] = useState<Partial<Product>>({});
+  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
     if (token) {
       setIsAuthenticated(true);
       fetchRetreats();
+      fetchProducts();
     }
   }, []);
 
@@ -149,8 +165,21 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
       fetchRetreats();
       fetchSettings();
       fetchReservations();
+      fetchProducts();
     }
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch('/api/products');
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch products', err);
+    }
+  };
 
   const handleSave = async () => {
     const token = localStorage.getItem('adminToken');
@@ -235,6 +264,60 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
       }
     } catch (err) {
       console.error('Error deleting retreat', err);
+    }
+  };
+
+  const handleSaveProduct = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    try {
+      const url = isEditingProduct ? `/api/products/${isEditingProduct}` : '/api/products';
+      const method = isEditingProduct ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(editProductForm)
+      });
+
+      if (res.ok) {
+        setIsEditingProduct(null);
+        setIsCreatingProduct(false);
+        setEditProductForm({});
+        fetchProducts();
+      } else {
+        alert('Failed to save product');
+      }
+    } catch (err) {
+      console.error('Error saving product', err);
+    }
+  };
+
+  const handleDeleteProduct = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
+
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    try {
+      const res = await fetch(`/api/products/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        fetchProducts();
+      } else {
+        alert('Failed to delete product');
+      }
+    } catch (err) {
+      console.error('Error deleting product', err);
     }
   };
 
@@ -373,6 +456,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
           >
             Reservations
           </button>
+          <button
+            onClick={() => setActiveTab('shop')}
+            className={`px-6 py-2 rounded-full font-bold transition-colors ${
+              activeTab === 'shop' 
+                ? 'bg-clarisma-gold text-black' 
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            Manage Shop
+          </button>
         </div>
 
         {activeTab === 'settings' ? (
@@ -476,6 +569,167 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'shop' ? (
+          <div>
+            <div className="flex justify-between items-center mb-8">
+              <h1 className="text-4xl md:text-5xl font-black text-white">Manage Digital Store</h1>
+              {!isCreatingProduct && !isEditingProduct && (
+                <button 
+                  onClick={() => {
+                    setIsCreatingProduct(true);
+                    setEditProductForm({
+                      title: '',
+                      description: '',
+                      price: '',
+                      image_url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80',
+                      download_url: '',
+                      category: 'Digital'
+                    });
+                  }}
+                  className="flex items-center gap-2 bg-clarisma-gold text-clarisma-red px-6 py-3 rounded-xl font-bold hover:bg-white transition-all shadow-lg"
+                >
+                  <Plus size={20} />
+                  New Product
+                </button>
+              )}
+            </div>
+
+            {(isCreatingProduct || isEditingProduct !== null) && (
+              <div className="bg-white/5 p-8 rounded-3xl border border-white/10 mb-12 backdrop-blur-sm">
+                <h2 className="text-2xl font-bold mb-6 text-white">{isCreatingProduct ? 'Add New Product' : 'Edit Product'}</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <label className="block text-sm font-bold mb-2 text-slate-300">Product Title</label>
+                    <input 
+                      type="text" 
+                      value={editProductForm.title || ''}
+                      onChange={(e) => setEditProductForm({...editProductForm, title: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold transition-colors"
+                      placeholder="e.g., The Charisma Blueprint"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2 text-slate-300">Price (USD)</label>
+                    <input 
+                      type="text" 
+                      value={editProductForm.price || ''}
+                      onChange={(e) => setEditProductForm({...editProductForm, price: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold transition-colors"
+                      placeholder="e.g., 29.99"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2 text-slate-300">Category</label>
+                    <select 
+                      value={editProductForm.category || ''}
+                      onChange={(e) => setEditProductForm({...editProductForm, category: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold transition-colors"
+                    >
+                      <option value="">Select Category</option>
+                      <option value="Intelligence Library">Intelligence Library</option>
+                      <option value="Professional Toolkit">Professional Toolkit</option>
+                      <option value="Clarisma Collection">Clarisma Collection</option>
+                      <option value="Curated Experience Bundles">Curated Experience Bundles</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2 text-slate-300">Download/Access URL</label>
+                    <input 
+                      type="text" 
+                      value={editProductForm.download_url || ''}
+                      onChange={(e) => setEditProductForm({...editProductForm, download_url: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold transition-colors"
+                      placeholder="Link to file or access portal"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold mb-2 text-slate-300">Image URL</label>
+                    <input 
+                      type="text" 
+                      value={editProductForm.image_url || ''}
+                      onChange={(e) => setEditProductForm({...editProductForm, image_url: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold transition-colors"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold mb-2 text-slate-300">Description</label>
+                    <textarea 
+                      value={editProductForm.description || ''}
+                      onChange={(e) => setEditProductForm({...editProductForm, description: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold h-32 transition-colors"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-4">
+                  <button 
+                    onClick={() => {
+                      setIsEditingProduct(null);
+                      setIsCreatingProduct(false);
+                    }}
+                    className="px-6 py-3 rounded-xl border border-white/20 text-white hover:bg-white/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSaveProduct}
+                    className="flex items-center gap-2 bg-clarisma-gold text-clarisma-red px-8 py-3 rounded-xl font-bold hover:bg-white transition-all shadow-lg"
+                  >
+                    <Save size={20} />
+                    Save Product
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {products.map(product => (
+                <div key={product.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-clarisma-gold/50 transition-all flex flex-col group">
+                  <div className="aspect-video relative overflow-hidden">
+                    <img 
+                      src={product.image_url} 
+                      alt={product.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      <button 
+                        onClick={() => {
+                          setIsEditingProduct(product.id);
+                          setEditProductForm(product);
+                          setIsCreatingProduct(false);
+                          window.scrollTo(0, 0);
+                        }}
+                        className="bg-black/60 p-2 rounded-lg text-white hover:text-clarisma-gold transition-colors backdrop-blur-sm"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteProduct(product.id)}
+                        className="bg-black/60 p-2 rounded-lg text-white hover:text-red-500 transition-colors backdrop-blur-sm"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="p-6 flex flex-col flex-grow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-xl font-bold text-white mb-1">{product.title}</h3>
+                      <span className="text-clarisma-gold font-bold">${product.price}</span>
+                    </div>
+                    <span className="text-xs bg-white/10 text-white/60 px-2 py-0.5 rounded-full w-fit mb-4 uppercase font-bold tracking-wider">{product.category}</span>
+                    <p className="text-white/60 text-sm line-clamp-3 mb-4">{product.description}</p>
+                    <div className="mt-auto text-xs text-white/40 truncate italic">
+                      URL: {product.download_url}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {products.length === 0 && !isCreatingProduct && (
+              <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/20">
+                <p className="text-white/40">No products found. Start by adding your first digital resource!</p>
               </div>
             )}
           </div>

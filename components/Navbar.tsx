@@ -25,6 +25,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
     { name: 'Services', href: '#services', isPage: false },
     { name: 'About', href: '#', isPage: true, destination: 'founder' },
     { name: 'Retreats', href: '#', isPage: true, destination: 'retreats' },
+    { name: 'Shop', href: '#', isPage: true, destination: 'shop' },
     { name: 'Stories', href: '#testimonials', isPage: false },
     { name: 'Contact', href: '#contact', isPage: false },
   ];

@@ -12,7 +12,8 @@ import Contact from './components/Contact';
 import Footer from './components/Footer';
 import FounderPage from './components/FounderPage';
 import RetreatsPage from './components/RetreatsPage';
-import AdminDashboard from './components/AdminDashboard';
+import ShopPage from './components/ShopPage';
+import AdminPage from './components/AdminPage';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -92,6 +93,8 @@ const App: React.FC = () => {
       navigate('/founder');
     } else if (destination === 'retreats') {
       navigate('/retreats');
+    } else if (destination === 'shop') {
+      navigate('/shop');
     } else if (destination === 'admin') {
       navigate('/admin');
     } else if (destination === 'home') {
@@ -132,7 +135,8 @@ const App: React.FC = () => {
                 onAdminAccess={() => navigate('/admin')}
               />
             } />
-            <Route path="/admin" element={<AdminDashboard onBack={() => navigate('/')} />} />
+            <Route path="/shop" element={<ShopPage onBack={() => navigate('/')} />} />
+            <Route path="/admin" element={<AdminPage onBack={() => navigate('/')} />} />
             {/* Fallback to home */}
             <Route path="*" element={<HomePage onNavigate={handleNavigation} />} />
           </Routes>
