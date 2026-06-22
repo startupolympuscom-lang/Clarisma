@@ -98,6 +98,14 @@ async function initDB() {
         value TEXT NOT NULL
       );
     `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS landing_content (
+        section VARCHAR(100) PRIMARY KEY,
+        content JSONB NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
     
     // Insert default video URL if not exists
     await pool.query(`
@@ -367,6 +375,39 @@ app.put('/api/reservations/:id/status', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Reservation not found' });
     }
     res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get all landing content sections
+app.get('/api/landing', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT section, content FROM landing_content');
+    const content = result.rows.reduce((acc: any, row: any) => {
+      acc[row.section] = row.content;
+      return acc;
+    }, {});
+    res.json(content);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update a landing content section (admin only)
+app.put('/api/landing/:section', authenticateToken, async (req, res) => {
+  const { section } = req.params;
+  const { content } = req.body;
+  try {
+    await pool.query(
+      `INSERT INTO landing_content (section, content, updated_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (section) DO UPDATE SET content = $2, updated_at = NOW()`,
+      [section, JSON.stringify(content)]
+    );
+    res.json({ message: 'Section updated successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Save, X, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
 
 interface AdminPageProps {
   onBack: () => void;
@@ -63,7 +63,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [tagsInput, setTagsInput] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'retreats' | 'settings' | 'reservations' | 'shop'>('retreats');
+  const [activeTab, setActiveTab] = useState<'retreats' | 'settings' | 'reservations' | 'shop' | 'landing'>('retreats');
   const [settings, setSettings] = useState<{hero_video_url?: string}>({});
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -74,6 +74,29 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [isEditingProduct, setIsEditingProduct] = useState<number | null>(null);
   const [editProductForm, setEditProductForm] = useState<Partial<Product>>({});
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+
+  // Landing page CMS state
+  const [landingHero, setLandingHero] = useState({
+    heading_line1: 'OWN YOUR',
+    heading_line2: 'NARRATIVE.',
+    subtitle: 'Empowering high-impact leaders to command their space with unshakeable clarity and authentic authority.',
+    button_label: 'Watch Introductory Video',
+  });
+  const [landingTestimonials, setLandingTestimonials] = useState<Array<{quote: string; author: string; role: string; company: string}>>([
+    { quote: "Working with Dr. Harbon was one of the most meaningful experiences of my studies. Her fiery soul, constant energy, and ability to find meaning in everything around her have shaped the way I approach challenges and purpose.", author: "Kenza Sifi", role: "Student of International Relations & Affair", company: "University Al Akhawayn" },
+    { quote: "At Startup Olympus, we look for founders who are solving real problems with passion. Dr. Claris Harbon is the embodiment of that spirit. Dr. Harbon is a force of nature.", author: "Abderrahim Hamidine", role: "Director", company: "Startup Olympus" },
+  ]);
+  const [landingPrograms, setLandingPrograms] = useState<Array<{title: string; icon: string; color: string; items: string[]}>>([
+    { title: "Academic Excellence", icon: "BookOpen", color: "from-blue-500 to-indigo-600", items: ["Mastering Research & Thesis Writing", "PhD Defense Preparation", "Time & Energy Management", "Building Research Networks"] },
+    { title: "Leadership & Growth", icon: "TrendingUp", color: "from-clarisma-gold to-clarisma-orange", items: ["Strategic Leadership Development", "Career Navigation & Goal-Setting", "Personal Branding Workshops", "Critical Thinking & Innovation"] },
+    { title: "Well-being & Resilience", icon: "Sun", color: "from-emerald-500 to-teal-600", items: ["Mindfulness & Resilience Retreats", "Self-Esteem & Confidence Building", "Emotional Intelligence Training", "Stress Management Techniques"] },
+    { title: "Women's Empowerment", icon: "Heart", color: "from-rose-500 to-pink-600", items: ["Feminist Leadership Training", "Women's Empowerment Toolbox", "Support Networks & Advocacy", "Community Engagement Programs"] },
+    { title: "Professional Skills", icon: "Mic", color: "from-violet-500 to-purple-600", items: ["Public Speaking Mastery", "Interview & Application Coaching", "Networking for Success", "Presentation Skills Boost"] },
+    { title: "Equity & Inclusion", icon: "Scale", color: "from-orange-500 to-red-600", items: ["Diversity & Inclusion Training", "Legal Literacy Seminars", "Workplace Equity Workshops", "Rights & Responsibilities Education"] },
+  ]);
+  const [isSavingLanding, setIsSavingLanding] = useState(false);
+  const [landingActiveSub, setLandingActiveSub] = useState<'hero' | 'testimonials' | 'programs'>('hero');
+  const [expandedProgram, setExpandedProgram] = useState<number | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
@@ -166,6 +189,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
       fetchSettings();
       fetchReservations();
       fetchProducts();
+      fetchLandingContent();
     }
   }, []);
 
@@ -178,6 +202,39 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
       }
     } catch (err) {
       console.error('Failed to fetch products', err);
+    }
+  };
+
+  const fetchLandingContent = async () => {
+    try {
+      const res = await fetch('/api/landing');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.hero) setLandingHero(prev => ({ ...prev, ...data.hero }));
+        if (data.testimonials) setLandingTestimonials(data.testimonials);
+        if (data.programs) setLandingPrograms(data.programs);
+      }
+    } catch (err) {
+      console.error('Failed to fetch landing content', err);
+    }
+  };
+
+  const saveLandingSection = async (section: string, content: any) => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return false;
+    setIsSavingLanding(true);
+    try {
+      const res = await fetch(`/api/landing/${section}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ content }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.error('Error saving landing section', err);
+      return false;
+    } finally {
+      setIsSavingLanding(false);
     }
   };
 
@@ -466,9 +523,376 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
           >
             Manage Shop
           </button>
+          <button
+            onClick={() => { setActiveTab('landing'); fetchLandingContent(); }}
+            className={`px-6 py-2 rounded-full font-bold transition-colors ${
+              activeTab === 'landing' 
+                ? 'bg-clarisma-gold text-black' 
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            Landing Page
+          </button>
         </div>
 
-        {activeTab === 'settings' ? (
+        {activeTab === 'landing' ? (
+          <div>
+            <div className="flex justify-between items-center mb-8">
+              <h1 className="text-4xl md:text-5xl font-black text-white">Landing Page Editor</h1>
+            </div>
+
+            {/* Sub-tabs */}
+            <div className="flex gap-3 mb-8 flex-wrap">
+              {(['hero', 'testimonials', 'programs'] as const).map(sub => (
+                <button
+                  key={sub}
+                  onClick={() => setLandingActiveSub(sub)}
+                  className={`px-5 py-2 rounded-full text-sm font-bold capitalize transition-colors ${
+                    landingActiveSub === sub
+                      ? 'bg-clarisma-gold/20 text-clarisma-gold border border-clarisma-gold/40'
+                      : 'text-slate-400 border border-white/10 hover:border-white/30 hover:text-white'
+                  }`}
+                >
+                  {sub === 'hero' ? 'Hero Section' : sub === 'testimonials' ? 'Testimonials' : 'Program Areas'}
+                </button>
+              ))}
+            </div>
+
+            {/* HERO EDITOR */}
+            {landingActiveSub === 'hero' && (
+              <div className="bg-white/5 p-8 rounded-3xl border border-white/10">
+                <h2 className="text-2xl font-bold mb-2 text-white">Hero Section</h2>
+                <p className="text-slate-400 text-sm mb-8">Edit the main headline, subtitle, and call-to-action text on the landing page.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
+                  <div>
+                    <label className="block text-sm font-bold mb-2 text-slate-300">Heading Line 1</label>
+                    <input
+                      type="text"
+                      value={landingHero.heading_line1}
+                      onChange={e => setLandingHero({ ...landingHero, heading_line1: e.target.value })}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold transition-colors"
+                      placeholder="OWN YOUR"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2 text-slate-300">Heading Line 2 (italic/gold)</label>
+                    <input
+                      type="text"
+                      value={landingHero.heading_line2}
+                      onChange={e => setLandingHero({ ...landingHero, heading_line2: e.target.value })}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold transition-colors"
+                      placeholder="NARRATIVE."
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold mb-2 text-slate-300">Subtitle</label>
+                    <textarea
+                      value={landingHero.subtitle}
+                      onChange={e => setLandingHero({ ...landingHero, subtitle: e.target.value })}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold h-24 transition-colors"
+                      placeholder="Empowering high-impact leaders..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2 text-slate-300">Button Label</label>
+                    <input
+                      type="text"
+                      value={landingHero.button_label}
+                      onChange={e => setLandingHero({ ...landingHero, button_label: e.target.value })}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold transition-colors"
+                      placeholder="Watch Introductory Video"
+                    />
+                  </div>
+                </div>
+                <div className="mt-8 flex items-center gap-4">
+                  <button
+                    onClick={async () => {
+                      const ok = await saveLandingSection('hero', landingHero);
+                      if (ok) alert('Hero section saved!');
+                      else alert('Failed to save hero section');
+                    }}
+                    disabled={isSavingLanding}
+                    className="flex items-center gap-2 bg-clarisma-gold text-black px-8 py-3 rounded-xl font-bold hover:bg-white transition-colors shadow-lg"
+                  >
+                    <Save size={18} />
+                    {isSavingLanding ? 'Saving...' : 'Save Hero Section'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TESTIMONIALS EDITOR */}
+            {landingActiveSub === 'testimonials' && (
+              <div className="bg-white/5 p-8 rounded-3xl border border-white/10">
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="text-2xl font-bold text-white">Testimonials</h2>
+                  <button
+                    onClick={() => setLandingTestimonials([...landingTestimonials, { quote: '', author: '', role: '', company: '' }])}
+                    className="flex items-center gap-2 bg-clarisma-gold text-black px-5 py-2 rounded-xl font-bold text-sm hover:bg-white transition-colors"
+                  >
+                    <Plus size={16} /> Add Testimonial
+                  </button>
+                </div>
+                <p className="text-slate-400 text-sm mb-8">Add, edit or remove testimonials displayed on the landing page.</p>
+                
+                <div className="space-y-6">
+                  {landingTestimonials.map((t, i) => (
+                    <div key={i} className="bg-black/30 border border-white/10 rounded-2xl p-6 relative">
+                      <button
+                        onClick={() => setLandingTestimonials(landingTestimonials.filter((_, idx) => idx !== i))}
+                        className="absolute top-4 right-4 text-red-400 hover:text-red-300 transition-colors"
+                        title="Remove"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Quote</label>
+                          <textarea
+                            value={t.quote}
+                            onChange={e => {
+                              const updated = [...landingTestimonials];
+                              updated[i] = { ...updated[i], quote: e.target.value };
+                              setLandingTestimonials(updated);
+                            }}
+                            className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold h-24 text-sm transition-colors"
+                            placeholder="Testimonial quote..."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Author Name</label>
+                          <input
+                            type="text"
+                            value={t.author}
+                            onChange={e => {
+                              const updated = [...landingTestimonials];
+                              updated[i] = { ...updated[i], author: e.target.value };
+                              setLandingTestimonials(updated);
+                            }}
+                            className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
+                            placeholder="Jane Doe"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Role / Title</label>
+                          <input
+                            type="text"
+                            value={t.role}
+                            onChange={e => {
+                              const updated = [...landingTestimonials];
+                              updated[i] = { ...updated[i], role: e.target.value };
+                              setLandingTestimonials(updated);
+                            }}
+                            className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
+                            placeholder="CEO, Company"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Company / Organization</label>
+                          <input
+                            type="text"
+                            value={t.company}
+                            onChange={e => {
+                              const updated = [...landingTestimonials];
+                              updated[i] = { ...updated[i], company: e.target.value };
+                              setLandingTestimonials(updated);
+                            }}
+                            className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
+                            placeholder="Organization Name"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {landingTestimonials.length === 0 && (
+                    <div className="text-center py-12 text-slate-500 border border-dashed border-white/10 rounded-2xl">
+                      No testimonials yet. Click &ldquo;Add Testimonial&rdquo; to create one.
+                    </div>
+                  )}
+                </div>
+                <div className="mt-8">
+                  <button
+                    onClick={async () => {
+                      const ok = await saveLandingSection('testimonials', landingTestimonials);
+                      if (ok) alert('Testimonials saved!');
+                      else alert('Failed to save testimonials');
+                    }}
+                    disabled={isSavingLanding}
+                    className="flex items-center gap-2 bg-clarisma-gold text-black px-8 py-3 rounded-xl font-bold hover:bg-white transition-colors shadow-lg"
+                  >
+                    <Save size={18} />
+                    {isSavingLanding ? 'Saving...' : 'Save All Testimonials'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* PROGRAMS EDITOR */}
+            {landingActiveSub === 'programs' && (
+              <div className="bg-white/5 p-8 rounded-3xl border border-white/10">
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="text-2xl font-bold text-white">Program Areas</h2>
+                  <button
+                    onClick={() => setLandingPrograms([...landingPrograms, { title: '', icon: 'BookOpen', color: 'from-blue-500 to-indigo-600', items: [''] }])}
+                    className="flex items-center gap-2 bg-clarisma-gold text-black px-5 py-2 rounded-xl font-bold text-sm hover:bg-white transition-colors"
+                  >
+                    <Plus size={16} /> Add Program
+                  </button>
+                </div>
+                <p className="text-slate-400 text-sm mb-8">Manage the specialized program area cards shown on the landing page.</p>
+
+                <div className="space-y-4">
+                  {landingPrograms.map((prog, i) => (
+                    <div key={i} className="bg-black/30 border border-white/10 rounded-2xl overflow-hidden">
+                      {/* Program header / toggle */}
+                      <div className="flex items-center justify-between p-5 cursor-pointer" onClick={() => setExpandedProgram(expandedProgram === i ? null : i)}>
+                        <div className="flex items-center gap-3">
+                          <GripVertical size={16} className="text-white/20" />
+                          <span className="font-bold text-white">{prog.title || `Program ${i + 1}`}</span>
+                          <span className="text-xs bg-white/10 px-2 py-0.5 rounded-full text-slate-400">{prog.items.length} items</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={e => { e.stopPropagation(); setLandingPrograms(landingPrograms.filter((_, idx) => idx !== i)); }}
+                            className="text-red-400 hover:text-red-300 transition-colors p-1"
+                            title="Delete program"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                          {expandedProgram === i ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
+                        </div>
+                      </div>
+
+                      {expandedProgram === i && (
+                        <div className="px-5 pb-6 border-t border-white/10 pt-5 space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Title</label>
+                              <input
+                                type="text"
+                                value={prog.title}
+                                onChange={e => {
+                                  const updated = [...landingPrograms];
+                                  updated[i] = { ...updated[i], title: e.target.value };
+                                  setLandingPrograms(updated);
+                                }}
+                                className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
+                                placeholder="Program Title"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Icon</label>
+                              <select
+                                value={prog.icon}
+                                onChange={e => {
+                                  const updated = [...landingPrograms];
+                                  updated[i] = { ...updated[i], icon: e.target.value };
+                                  setLandingPrograms(updated);
+                                }}
+                                className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
+                              >
+                                <option value="BookOpen">Book / Academic</option>
+                                <option value="TrendingUp">Trending / Growth</option>
+                                <option value="Sun">Sun / Wellbeing</option>
+                                <option value="Heart">Heart / Empowerment</option>
+                                <option value="Mic">Mic / Speaking</option>
+                                <option value="Scale">Scale / Equity</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Color Theme</label>
+                              <select
+                                value={prog.color}
+                                onChange={e => {
+                                  const updated = [...landingPrograms];
+                                  updated[i] = { ...updated[i], color: e.target.value };
+                                  setLandingPrograms(updated);
+                                }}
+                                className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
+                              >
+                                <option value="from-blue-500 to-indigo-600">Blue / Indigo</option>
+                                <option value="from-clarisma-gold to-clarisma-orange">Gold / Orange</option>
+                                <option value="from-emerald-500 to-teal-600">Emerald / Teal</option>
+                                <option value="from-rose-500 to-pink-600">Rose / Pink</option>
+                                <option value="from-violet-500 to-purple-600">Violet / Purple</option>
+                                <option value="from-orange-500 to-red-600">Orange / Red</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between items-center mb-2">
+                              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Program Items</label>
+                              <button
+                                onClick={() => {
+                                  const updated = [...landingPrograms];
+                                  updated[i] = { ...updated[i], items: [...updated[i].items, ''] };
+                                  setLandingPrograms(updated);
+                                }}
+                                className="text-xs text-clarisma-gold hover:text-white transition-colors flex items-center gap-1"
+                              >
+                                <Plus size={12} /> Add Item
+                              </button>
+                            </div>
+                            <div className="space-y-2">
+                              {prog.items.map((item, j) => (
+                                <div key={j} className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={item}
+                                    onChange={e => {
+                                      const updated = [...landingPrograms];
+                                      const newItems = [...updated[i].items];
+                                      newItems[j] = e.target.value;
+                                      updated[i] = { ...updated[i], items: newItems };
+                                      setLandingPrograms(updated);
+                                    }}
+                                    className="flex-1 bg-black/50 border border-white/20 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
+                                    placeholder={`Item ${j + 1}`}
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      const updated = [...landingPrograms];
+                                      updated[i] = { ...updated[i], items: updated[i].items.filter((_, k) => k !== j) };
+                                      setLandingPrograms(updated);
+                                    }}
+                                    className="text-red-400 hover:text-red-300 transition-colors px-2"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {landingPrograms.length === 0 && (
+                    <div className="text-center py-12 text-slate-500 border border-dashed border-white/10 rounded-2xl">
+                      No programs yet. Click &ldquo;Add Program&rdquo; to create one.
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-8">
+                  <button
+                    onClick={async () => {
+                      const ok = await saveLandingSection('programs', landingPrograms);
+                      if (ok) alert('Programs saved!');
+                      else alert('Failed to save programs');
+                    }}
+                    disabled={isSavingLanding}
+                    className="flex items-center gap-2 bg-clarisma-gold text-black px-8 py-3 rounded-xl font-bold hover:bg-white transition-colors shadow-lg"
+                  >
+                    <Save size={18} />
+                    {isSavingLanding ? 'Saving...' : 'Save All Programs'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'settings' ? (
           <div className="bg-white/5 p-8 rounded-3xl border border-white/10">
             <h2 className="text-2xl font-bold mb-6">Global Settings</h2>
             

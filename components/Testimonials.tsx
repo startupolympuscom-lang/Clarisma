@@ -1,21 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Quote, Star, ArrowRight } from 'lucide-react';
 
+const DEFAULT_TESTIMONIALS = [
+  {
+    quote: "Working with Dr. Harbon was one of the most meaningful experiences of my studies. Through our projects, and my volunteering to promote equality and discuss women's rights in Morocco, I learned the power of creating spaces where women can grow, learn, and be heard. Her fiery soul, constant energy, and ability to find meaning in everything around her have shaped the way I approach challenges and purpose.",
+    author: "Kenza Sifi",
+    role: "Student of International Relations & Affair",
+    company: "University Al Akhawayn"
+  },
+  {
+    quote: "At Startup Olympus, we look for founders who are solving real problems with passion. Dr. Claris Harbon is the embodiment of that spirit. Through Clarisma, she is redefining what it means to be empowered in both life and business. Her energy is infectious, and her dedication to helping others unlock their potential is genuine. Dr. Harbon is a force of nature.",
+    author: "Abderrahim Hamidine",
+    role: "Director",
+    company: "Startup Olympus"
+  }
+];
+
 const Testimonials: React.FC = () => {
-  const testimonials = [
-    {
-      quote: "Working with Dr. Harbon was one of the most meaningful experiences of my studies. Through our projects, and my volunteering to promote equality and discuss women’s rights in Morocco, I learned the power of creating spaces where women can grow, learn, and be heard. Her fiery soul, constant energy, and ability to find meaning in everything around her have shaped the way I approach challenges and purpose.",
-      author: "Kenza Sifi",
-      role: "Student of International Relations & Affair",
-      company: "University Al Akhawayn"
-    },
-    {
-      quote: "At Startup Olympus, we look for founders who are solving real problems with passion. Dr. Claris Harbon is the embodiment of that spirit. Through Clarisma, she is redefining what it means to be empowered in both life and business. Her energy is infectious, and her dedication to helping others unlock their potential is genuine. Dr. Harbon is a force of nature.",
-      author: "Abderrahim Hamidine",
-      role: "Director",
-      company: "Startup Olympus"
-    }
-  ];
+  const [testimonials, setTestimonials] = useState(DEFAULT_TESTIMONIALS);
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      try {
+        const res = await fetch('/api/landing');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.testimonials && Array.isArray(data.testimonials) && data.testimonials.length > 0) {
+            setTestimonials(data.testimonials);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch testimonials', err);
+      }
+    };
+    fetchContent();
+  }, []);
 
   return (
     <section id="testimonials" className="py-32 relative overflow-hidden bg-clarisma-red">
