@@ -3,38 +3,41 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight, Sparkles, X, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const DEFAULT_HERO = {
-  heading_line1: 'OWN YOUR',
-  heading_line2: 'NARRATIVE.',
-  subtitle: 'Empowering high-impact leaders to command their space with unshakeable clarity and authentic authority.',
-  button_label: 'Watch Introductory Video',
-};
-
 const Hero: React.FC = () => {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [videoUrl, setVideoUrl] = useState("https://drive.google.com/file/d/1m8nUWm5US-8l63U0lolu0JZBK7OVmX0k/view?usp=sharing");
-  const [heroContent, setHeroContent] = useState(DEFAULT_HERO);
+  const [heroTitle, setHeroTitle] = useState("OWN YOUR");
+  const [heroTitleItalic, setHeroTitleItalic] = useState("NARRATIVE.");
+  const [heroDesc, setHeroDesc] = useState("Empowering high-impact leaders to command their space with unshakeable clarity and authentic authority.");
 
   useEffect(() => {
-    const fetchContent = async () => {
+    const fetchSettings = async () => {
       try {
-        const [settingsRes, landingRes] = await Promise.all([
-          fetch('/api/settings'),
-          fetch('/api/landing'),
-        ]);
-        if (settingsRes.ok) {
-          const data = await settingsRes.json();
-          if (data.hero_video_url) setVideoUrl(data.hero_video_url);
-        }
-        if (landingRes.ok) {
-          const data = await landingRes.json();
-          if (data.hero) setHeroContent({ ...DEFAULT_HERO, ...data.hero });
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.hero_video_url) {
+            setVideoUrl(data.hero_video_url);
+          }
+          if (data.hero_title) {
+            setHeroTitle(data.hero_title);
+          }
+          if (data.hero_title_italic !== undefined) {
+            setHeroTitleItalic(data.hero_title_italic);
+          } else if (data.hero_title && data.hero_title.includes('NARRATIVE.')) {
+            // Upgrade path
+            setHeroTitle(data.hero_title.replace('NARRATIVE.', '').trim());
+            setHeroTitleItalic('NARRATIVE.');
+          }
+          if (data.hero_desc) {
+            setHeroDesc(data.hero_desc);
+          }
         }
       } catch (err) {
-        console.error('Failed to fetch content', err);
+        console.error('Failed to fetch settings', err);
       }
     };
-    fetchContent();
+    fetchSettings();
   }, []);
 
   const containerVariants = {
@@ -87,17 +90,17 @@ const Hero: React.FC = () => {
 
         <motion.h1 
           variants={itemVariants}
-          className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter text-white leading-[0.9] mb-10"
+          className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter text-white leading-[0.9] mb-10 text-center"
         >
-          {heroContent.heading_line1} <br />
-          <span className="italic font-light text-clarisma-gold/90">{heroContent.heading_line2}</span>
+          {heroTitle} <br />
+          <span className="italic font-light text-clarisma-gold/90">{heroTitleItalic}</span>
         </motion.h1>
 
         <motion.p 
           variants={itemVariants}
-          className="text-lg md:text-xl text-slate-400 max-w-xl mx-auto mb-16 leading-relaxed font-light tracking-wide"
+          className="text-lg md:text-xl text-slate-400 max-w-xl mx-auto mb-16 leading-relaxed font-light tracking-wide text-center"
         >
-          {heroContent.subtitle}
+          {heroDesc}
         </motion.p>
 
         <motion.div variants={itemVariants}>
@@ -105,7 +108,7 @@ const Hero: React.FC = () => {
             onClick={() => setIsVideoOpen(true)}
             className="group relative inline-flex items-center gap-6 px-12 py-6 bg-transparent border border-white/10 rounded-full text-white font-bold text-lg hover:border-clarisma-gold/50 hover:bg-white/5 transition-all duration-700 overflow-hidden"
           >
-            <span className="relative z-10 tracking-widest uppercase text-sm">{heroContent.button_label}</span>
+            <span className="relative z-10 tracking-widest uppercase text-sm">Watch Introductory Video</span>
             <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-clarisma-gold group-hover:text-clarisma-red transition-all duration-500">
               <Play size={18} className="ml-1" />
             </div>

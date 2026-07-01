@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Save, X, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 
 interface AdminPageProps {
   onBack: () => void;
@@ -35,6 +35,14 @@ interface Reservation {
   created_at: string;
 }
 
+interface Testimonial {
+  id: number;
+  quote: string;
+  author: string;
+  role: string;
+  company: string;
+}
+
 interface Product {
   id: number;
   title: string;
@@ -55,16 +63,15 @@ interface FormField {
 
 const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [pseudo, setPseudo] = useState('');
-  const [password, setPassword] = useState('');
+  const [passcode, setPasscode] = useState('');
   const [retreats, setRetreats] = useState<Retreat[]>([]);
   const [isEditing, setIsEditing] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<Retreat>>({});
   const [tagsInput, setTagsInput] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'retreats' | 'settings' | 'reservations' | 'shop' | 'landing'>('retreats');
-  const [settings, setSettings] = useState<{hero_video_url?: string}>({});
+  const [activeTab, setActiveTab] = useState<'retreats' | 'settings' | 'reservations' | 'shop' | 'landing' | 'services'>('retreats');
+  const [settings, setSettings] = useState<any>({});
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [customFields, setCustomFields] = useState<FormField[]>([]);
@@ -75,28 +82,15 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [editProductForm, setEditProductForm] = useState<Partial<Product>>({});
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
-  // Landing page CMS state
-  const [landingHero, setLandingHero] = useState({
-    heading_line1: 'OWN YOUR',
-    heading_line2: 'NARRATIVE.',
-    subtitle: 'Empowering high-impact leaders to command their space with unshakeable clarity and authentic authority.',
-    button_label: 'Watch Introductory Video',
-  });
-  const [landingTestimonials, setLandingTestimonials] = useState<Array<{quote: string; author: string; role: string; company: string}>>([
-    { quote: "Working with Dr. Harbon was one of the most meaningful experiences of my studies. Her fiery soul, constant energy, and ability to find meaning in everything around her have shaped the way I approach challenges and purpose.", author: "Kenza Sifi", role: "Student of International Relations & Affair", company: "University Al Akhawayn" },
-    { quote: "At Startup Olympus, we look for founders who are solving real problems with passion. Dr. Claris Harbon is the embodiment of that spirit. Dr. Harbon is a force of nature.", author: "Abderrahim Hamidine", role: "Director", company: "Startup Olympus" },
-  ]);
-  const [landingPrograms, setLandingPrograms] = useState<Array<{title: string; icon: string; color: string; items: string[]}>>([
-    { title: "Academic Excellence", icon: "BookOpen", color: "from-blue-500 to-indigo-600", items: ["Mastering Research & Thesis Writing", "PhD Defense Preparation", "Time & Energy Management", "Building Research Networks"] },
-    { title: "Leadership & Growth", icon: "TrendingUp", color: "from-clarisma-gold to-clarisma-orange", items: ["Strategic Leadership Development", "Career Navigation & Goal-Setting", "Personal Branding Workshops", "Critical Thinking & Innovation"] },
-    { title: "Well-being & Resilience", icon: "Sun", color: "from-emerald-500 to-teal-600", items: ["Mindfulness & Resilience Retreats", "Self-Esteem & Confidence Building", "Emotional Intelligence Training", "Stress Management Techniques"] },
-    { title: "Women's Empowerment", icon: "Heart", color: "from-rose-500 to-pink-600", items: ["Feminist Leadership Training", "Women's Empowerment Toolbox", "Support Networks & Advocacy", "Community Engagement Programs"] },
-    { title: "Professional Skills", icon: "Mic", color: "from-violet-500 to-purple-600", items: ["Public Speaking Mastery", "Interview & Application Coaching", "Networking for Success", "Presentation Skills Boost"] },
-    { title: "Equity & Inclusion", icon: "Scale", color: "from-orange-500 to-red-600", items: ["Diversity & Inclusion Training", "Legal Literacy Seminars", "Workplace Equity Workshops", "Rights & Responsibilities Education"] },
-  ]);
-  const [isSavingLanding, setIsSavingLanding] = useState(false);
-  const [landingActiveSub, setLandingActiveSub] = useState<'hero' | 'testimonials' | 'programs'>('hero');
-  const [expandedProgram, setExpandedProgram] = useState<number | null>(null);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [isEditingTestimonial, setIsEditingTestimonial] = useState<number | null>(null);
+  const [editTestimonialForm, setEditTestimonialForm] = useState<Partial<Testimonial>>({});
+  const [isCreatingTestimonial, setIsCreatingTestimonial] = useState(false);
+
+  const [services, setServices] = useState<any[]>([]);
+  const [isEditingService, setIsEditingService] = useState<number | null>(null);
+  const [editServiceForm, setEditServiceForm] = useState<any>({});
+  const [isCreatingService, setIsCreatingService] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
@@ -104,6 +98,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
       setIsAuthenticated(true);
       fetchRetreats();
       fetchProducts();
+      fetchSettings();
+      fetchReservations();
+      fetchTestimonials();
+      fetchServices();
     }
   }, []);
 
@@ -113,7 +111,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pseudo, password })
+        body: JSON.stringify({ passcode })
       });
       
       if (res.ok) {
@@ -189,7 +187,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
       fetchSettings();
       fetchReservations();
       fetchProducts();
-      fetchLandingContent();
+      fetchServices();
     }
   }, []);
 
@@ -205,36 +203,144 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     }
   };
 
-  const fetchLandingContent = async () => {
+  const fetchTestimonials = async () => {
     try {
-      const res = await fetch('/api/landing');
+      const res = await fetch('/api/testimonials');
       if (res.ok) {
         const data = await res.json();
-        if (data.hero) setLandingHero(prev => ({ ...prev, ...data.hero }));
-        if (data.testimonials) setLandingTestimonials(data.testimonials);
-        if (data.programs) setLandingPrograms(data.programs);
+        setTestimonials(data);
       }
     } catch (err) {
-      console.error('Failed to fetch landing content', err);
+      console.error('Failed to fetch testimonials', err);
     }
   };
 
-  const saveLandingSection = async (section: string, content: any) => {
-    const token = localStorage.getItem('adminToken');
-    if (!token) return false;
-    setIsSavingLanding(true);
+  const fetchServices = async () => {
     try {
-      const res = await fetch(`/api/landing/${section}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ content }),
-      });
-      return res.ok;
+      const res = await fetch('/api/services');
+      if (res.ok) {
+        const data = await res.json();
+        const parsedServices = data.map((s: any) => ({
+          ...s,
+          items: typeof s.items === 'string' ? JSON.parse(s.items) : s.items
+        }));
+        setServices(parsedServices);
+      }
     } catch (err) {
-      console.error('Error saving landing section', err);
-      return false;
-    } finally {
-      setIsSavingLanding(false);
+      console.error('Failed to fetch services', err);
+    }
+  };
+
+  const handleSaveService = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    try {
+      const url = isEditingService ? `/api/services/${isEditingService}` : '/api/services';
+      const method = isEditingService ? 'PUT' : 'POST';
+
+      const payload = {
+        ...editServiceForm,
+        items: JSON.stringify(editServiceForm.items || [])
+      };
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        setIsEditingService(null);
+        setIsCreatingService(false);
+        setEditServiceForm({});
+        fetchServices();
+      } else {
+        alert('Failed to save service');
+      }
+    } catch (err) {
+      console.error('Error saving service', err);
+    }
+  };
+
+  const handleDeleteService = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this service?')) return;
+
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    try {
+      const res = await fetch(`/api/services/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        fetchServices();
+      } else {
+        alert('Failed to delete service');
+      }
+    } catch (err) {
+      console.error('Error deleting service', err);
+    }
+  };
+
+  const handleSaveTestimonial = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    try {
+      const url = isEditingTestimonial ? `/api/testimonials/${isEditingTestimonial}` : '/api/testimonials';
+      const method = isEditingTestimonial ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(editTestimonialForm)
+      });
+
+      if (res.ok) {
+        setIsEditingTestimonial(null);
+        setIsCreatingTestimonial(false);
+        setEditTestimonialForm({});
+        fetchTestimonials();
+      } else {
+        alert('Failed to save testimonial');
+      }
+    } catch (err) {
+      console.error('Error saving testimonial', err);
+    }
+  };
+
+  const handleDeleteTestimonial = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this testimonial?')) return;
+
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    try {
+      const res = await fetch(`/api/testimonials/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        fetchTestimonials();
+      } else {
+        alert('Failed to delete testimonial');
+      }
+    } catch (err) {
+      console.error('Error deleting testimonial', err);
     }
   };
 
@@ -430,23 +536,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
           
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-bold mb-2">Pseudo</label>
-              <input 
-                type="text" 
-                value={pseudo}
-                onChange={(e) => setPseudo(e.target.value)}
-                className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
-                placeholder="Enter admin pseudo"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold mb-2">Password</label>
+              <label className="block text-sm font-bold mb-2">Access Code</label>
               <input 
                 type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
                 className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
-                placeholder="Enter admin password"
+                placeholder="Enter access code"
               />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
@@ -482,7 +578,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
           </button>
         </div>
 
-        <div className="flex gap-4 mb-8 border-b border-white/10 pb-4">
+        <div className="flex flex-wrap gap-4 mb-8 border-b border-white/10 pb-4">
           <button
             onClick={() => setActiveTab('retreats')}
             className={`px-6 py-2 rounded-full font-bold transition-colors ${
@@ -492,6 +588,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
             }`}
           >
             Manage Retreats
+          </button>
+          <button
+            onClick={() => setActiveTab('landing')}
+            className={`px-6 py-2 rounded-full font-bold transition-colors ${
+              activeTab === 'landing' 
+                ? 'bg-clarisma-gold text-black' 
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            Manage Landing Page
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -524,373 +630,403 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
             Manage Shop
           </button>
           <button
-            onClick={() => { setActiveTab('landing'); fetchLandingContent(); }}
+            onClick={() => setActiveTab('services')}
             className={`px-6 py-2 rounded-full font-bold transition-colors ${
-              activeTab === 'landing' 
+              activeTab === 'services' 
                 ? 'bg-clarisma-gold text-black' 
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            Landing Page
+            Manage Services
           </button>
         </div>
 
         {activeTab === 'landing' ? (
-          <div>
-            <div className="flex justify-between items-center mb-8">
-              <h1 className="text-4xl md:text-5xl font-black text-white">Landing Page Editor</h1>
-            </div>
+          <div className="space-y-12">
+            {/* Section 1: Texts & Headings */}
+            <div className="bg-white/5 p-8 rounded-3xl border border-white/10">
+              <h2 className="text-2xl font-bold mb-6">Landing Page Sections Visibility</h2>
+              <div className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-8 max-w-4xl grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { key: 'show_hero', label: 'Hero Section' },
+                  { key: 'show_about', label: 'About Section' },
+                  { key: 'show_services', label: 'Services' },
+                  { key: 'show_target_audience', label: 'Target Audience' },
+                  { key: 'show_specialized_programs', label: 'Programs' },
+                  { key: 'show_process', label: 'Methodology' },
+                  { key: 'show_testimonials', label: 'Testimonials' },
+                  { key: 'show_contact', label: 'Contact' }
+                ].map(section => (
+                  <label key={section.key} className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings[section.key] !== 'false'}
+                      onChange={(e) => setSettings({...settings, [section.key]: e.target.checked ? 'true' : 'false'})}
+                      className="w-5 h-5 accent-clarisma-gold rounded bg-black/50 border-white/20"
+                    />
+                    <span className="text-sm font-medium">{section.label}</span>
+                  </label>
+                ))}
+              </div>
 
-            {/* Sub-tabs */}
-            <div className="flex gap-3 mb-8 flex-wrap">
-              {(['hero', 'testimonials', 'programs'] as const).map(sub => (
-                <button
-                  key={sub}
-                  onClick={() => setLandingActiveSub(sub)}
-                  className={`px-5 py-2 rounded-full text-sm font-bold capitalize transition-colors ${
-                    landingActiveSub === sub
-                      ? 'bg-clarisma-gold/20 text-clarisma-gold border border-clarisma-gold/40'
-                      : 'text-slate-400 border border-white/10 hover:border-white/30 hover:text-white'
-                  }`}
+              <h2 className="text-2xl font-bold mb-6">Landing Page Content & Texts</h2>
+              
+              <div className="space-y-8 max-w-4xl">
+                {/* Hero section customization */}
+                <div className="border-b border-white/10 pb-6">
+                  <h3 className="text-lg font-bold text-clarisma-gold mb-4 uppercase tracking-wider">1. Hero Section</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Hero Title (Static Text)</label>
+                      <input 
+                        type="text" 
+                        value={settings.hero_title || ''}
+                        onChange={(e) => setSettings({...settings, hero_title: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="e.g., OWN YOUR"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Hero Title (Italic Accent)</label>
+                      <input 
+                        type="text" 
+                        value={settings.hero_title_italic || ''}
+                        onChange={(e) => setSettings({...settings, hero_title_italic: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="e.g., NARRATIVE."
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-bold mb-2">Hero Description</label>
+                      <textarea 
+                        rows={3}
+                        value={settings.hero_desc || ''}
+                        onChange={(e) => setSettings({...settings, hero_desc: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="Hero subtitle description"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* About section customization */}
+                <div className="border-b border-white/10 pb-6">
+                  <h3 className="text-lg font-bold text-clarisma-gold mb-4 uppercase tracking-wider">2. About Section</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-bold mb-2">About Section Badge</label>
+                      <input 
+                        type="text" 
+                        value={settings.about_badge || ''}
+                        onChange={(e) => setSettings({...settings, about_badge: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="e.g., About Clarisma"
+                      />
+                    </div>
+                    <div className="hidden md:block"></div>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Heading Line 1</label>
+                      <input 
+                        type="text" 
+                        value={settings.about_heading1 || ''}
+                        onChange={(e) => setSettings({...settings, about_heading1: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="e.g., Clarify your charisma."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Heading Line 2 (Slate Color Highlight)</label>
+                      <input 
+                        type="text" 
+                        value={settings.about_heading2 || ''}
+                        onChange={(e) => setSettings({...settings, about_heading2: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="e.g., Magnify your impact."
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-bold mb-2">About Body Paragraph 1 (HTML allowed)</label>
+                      <textarea 
+                        rows={3}
+                        value={settings.about_body_p1 || ''}
+                        onChange={(e) => setSettings({...settings, about_body_p1: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold font-mono text-sm"
+                        placeholder="First descriptive paragraph"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-bold mb-2">About Body Paragraph 2 (HTML allowed)</label>
+                      <textarea 
+                        rows={3}
+                        value={settings.about_body_p2 || ''}
+                        onChange={(e) => setSettings({...settings, about_body_p2: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold font-mono text-sm"
+                        placeholder="Second descriptive paragraph"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Founder Bio Card Name</label>
+                      <input 
+                        type="text" 
+                        value={settings.about_founder_name || ''}
+                        onChange={(e) => setSettings({...settings, about_founder_name: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="e.g., Dr. Claris Harbon"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Founder Bio Card Subtitle</label>
+                      <input 
+                        type="text" 
+                        value={settings.about_founder_title || ''}
+                        onChange={(e) => setSettings({...settings, about_founder_title: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="Founder title/academic bio line"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-bold mb-2">Founder Image URL</label>
+                      <input 
+                        type="text" 
+                        value={settings.about_founder_image_url || ''}
+                        onChange={(e) => setSettings({...settings, about_founder_image_url: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="https://example.com/founder.jpg"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Services Customization */}
+                <div className="border-b border-white/10 pb-6">
+                  <h3 className="text-lg font-bold text-clarisma-gold mb-4 uppercase tracking-wider">3. Services Section</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Title Line 1</label>
+                      <input 
+                        type="text" 
+                        value={settings.services_title_1 || ''}
+                        onChange={(e) => setSettings({...settings, services_title_1: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="e.g., LEVEL UP"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Title Line 2</label>
+                      <input 
+                        type="text" 
+                        value={settings.services_title_2 || ''}
+                        onChange={(e) => setSettings({...settings, services_title_2: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="e.g., YOUR"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Title Highlight</label>
+                      <input 
+                        type="text" 
+                        value={settings.services_title_highlight || ''}
+                        onChange={(e) => setSettings({...settings, services_title_highlight: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="e.g., IMPACT."
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-bold mb-2">Description</label>
+                      <textarea 
+                        rows={3}
+                        value={settings.services_desc || ''}
+                        onChange={(e) => setSettings({...settings, services_desc: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="Services description..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Methodology Customization */}
+                <div className="pb-6">
+                  <h3 className="text-lg font-bold text-clarisma-gold mb-4 uppercase tracking-wider">4. Methodology (Process) Section</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Methodology Badge</label>
+                      <input 
+                        type="text" 
+                        value={settings.methodology_badge || ''}
+                        onChange={(e) => setSettings({...settings, methodology_badge: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="e.g., Our Methodology"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Heading title</label>
+                      <input 
+                        type="text" 
+                        value={settings.methodology_heading || ''}
+                        onChange={(e) => setSettings({...settings, methodology_heading: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="Blueprint for professional mastery"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-bold mb-2">Description</label>
+                      <textarea 
+                        rows={3}
+                        value={settings.methodology_desc || ''}
+                        onChange={(e) => setSettings({...settings, methodology_desc: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="Short section overview"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleSaveSettings}
+                  disabled={isSavingSettings}
+                  className="bg-clarisma-gold text-black px-8 py-3 rounded-xl font-bold hover:bg-white transition-colors flex items-center gap-2"
                 >
-                  {sub === 'hero' ? 'Hero Section' : sub === 'testimonials' ? 'Testimonials' : 'Program Areas'}
+                  <Save size={20} />
+                  {isSavingSettings ? 'Saving...' : 'Save Landing Page Texts'}
                 </button>
-              ))}
+              </div>
             </div>
 
-            {/* HERO EDITOR */}
-            {landingActiveSub === 'hero' && (
-              <div className="bg-white/5 p-8 rounded-3xl border border-white/10">
-                <h2 className="text-2xl font-bold mb-2 text-white">Hero Section</h2>
-                <p className="text-slate-400 text-sm mb-8">Edit the main headline, subtitle, and call-to-action text on the landing page.</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
-                  <div>
-                    <label className="block text-sm font-bold mb-2 text-slate-300">Heading Line 1</label>
-                    <input
-                      type="text"
-                      value={landingHero.heading_line1}
-                      onChange={e => setLandingHero({ ...landingHero, heading_line1: e.target.value })}
-                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold transition-colors"
-                      placeholder="OWN YOUR"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold mb-2 text-slate-300">Heading Line 2 (italic/gold)</label>
-                    <input
-                      type="text"
-                      value={landingHero.heading_line2}
-                      onChange={e => setLandingHero({ ...landingHero, heading_line2: e.target.value })}
-                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold transition-colors"
-                      placeholder="NARRATIVE."
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-bold mb-2 text-slate-300">Subtitle</label>
-                    <textarea
-                      value={landingHero.subtitle}
-                      onChange={e => setLandingHero({ ...landingHero, subtitle: e.target.value })}
-                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold h-24 transition-colors"
-                      placeholder="Empowering high-impact leaders..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold mb-2 text-slate-300">Button Label</label>
-                    <input
-                      type="text"
-                      value={landingHero.button_label}
-                      onChange={e => setLandingHero({ ...landingHero, button_label: e.target.value })}
-                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold transition-colors"
-                      placeholder="Watch Introductory Video"
-                    />
-                  </div>
+            {/* Section 2: Testimonial CMS (Add/Edit/Delete elements of Testimonials) */}
+            <div className="bg-white/5 p-8 rounded-3xl border border-white/10">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Client Testimonials</h2>
+                  <p className="text-sm text-slate-400 mt-1">Manage core stories displayed on the landing page.</p>
                 </div>
-                <div className="mt-8 flex items-center gap-4">
+                {!isCreatingTestimonial && isEditingTestimonial === null && (
                   <button
-                    onClick={async () => {
-                      const ok = await saveLandingSection('hero', landingHero);
-                      if (ok) alert('Hero section saved!');
-                      else alert('Failed to save hero section');
+                    onClick={() => {
+                      setIsCreatingTestimonial(true);
+                      setEditTestimonialForm({ quote: '', author: '', role: '', company: '' });
                     }}
-                    disabled={isSavingLanding}
-                    className="flex items-center gap-2 bg-clarisma-gold text-black px-8 py-3 rounded-xl font-bold hover:bg-white transition-colors shadow-lg"
+                    className="bg-clarisma-gold text-black px-6 py-2 rounded-xl font-bold hover:bg-white transition-colors flex items-center gap-2"
                   >
-                    <Save size={18} />
-                    {isSavingLanding ? 'Saving...' : 'Save Hero Section'}
+                    <Plus size={18} />
+                    <span>Add Testimonial</span>
                   </button>
-                </div>
+                )}
               </div>
-            )}
 
-            {/* TESTIMONIALS EDITOR */}
-            {landingActiveSub === 'testimonials' && (
-              <div className="bg-white/5 p-8 rounded-3xl border border-white/10">
-                <div className="flex justify-between items-center mb-2">
-                  <h2 className="text-2xl font-bold text-white">Testimonials</h2>
-                  <button
-                    onClick={() => setLandingTestimonials([...landingTestimonials, { quote: '', author: '', role: '', company: '' }])}
-                    className="flex items-center gap-2 bg-clarisma-gold text-black px-5 py-2 rounded-xl font-bold text-sm hover:bg-white transition-colors"
-                  >
-                    <Plus size={16} /> Add Testimonial
-                  </button>
-                </div>
-                <p className="text-slate-400 text-sm mb-8">Add, edit or remove testimonials displayed on the landing page.</p>
-                
-                <div className="space-y-6">
-                  {landingTestimonials.map((t, i) => (
-                    <div key={i} className="bg-black/30 border border-white/10 rounded-2xl p-6 relative">
+              {/* Form panel */}
+              {(isCreatingTestimonial || isEditingTestimonial !== null) && (
+                <div className="bg-black/40 p-6 rounded-2xl border border-white/5 mb-8 max-w-2xl">
+                  <h3 className="text-lg font-bold mb-4">
+                    {isEditingTestimonial !== null ? 'Edit Testimonial' : 'Create New Testimonial'}
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Client Quote</label>
+                      <textarea
+                        rows={4}
+                        value={editTestimonialForm.quote || ''}
+                        onChange={(e) => setEditTestimonialForm({...editTestimonialForm, quote: e.target.value})}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                        placeholder="Tell the transformation story..."
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-bold mb-2">Author Name</label>
+                        <input
+                          type="text"
+                          value={editTestimonialForm.author || ''}
+                          onChange={(e) => setEditTestimonialForm({...editTestimonialForm, author: e.target.value})}
+                          className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                          placeholder="e.g. Kenza Sifi"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold mb-2">Role/Position</label>
+                        <input
+                          type="text"
+                          value={editTestimonialForm.role || ''}
+                          onChange={(e) => setEditTestimonialForm({...editTestimonialForm, role: e.target.value})}
+                          className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                          placeholder="e.g. Student"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold mb-2">Institution/Company</label>
+                        <input
+                          type="text"
+                          value={editTestimonialForm.company || ''}
+                          onChange={(e) => setEditTestimonialForm({...editTestimonialForm, company: e.target.value})}
+                          className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                          placeholder="e.g. Al Akhawayn Univ."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 justify-end pt-4">
                       <button
-                        onClick={() => setLandingTestimonials(landingTestimonials.filter((_, idx) => idx !== i))}
-                        className="absolute top-4 right-4 text-red-400 hover:text-red-300 transition-colors"
-                        title="Remove"
+                        onClick={() => {
+                          setIsCreatingTestimonial(false);
+                          setIsEditingTestimonial(null);
+                          setEditTestimonialForm({});
+                        }}
+                        className="px-6 py-2 rounded-xl text-slate-300 bg-white/5 hover:bg-white/10 transition-colors"
                       >
-                        <Trash2 size={16} />
+                        Cancel
                       </button>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Quote</label>
-                          <textarea
-                            value={t.quote}
-                            onChange={e => {
-                              const updated = [...landingTestimonials];
-                              updated[i] = { ...updated[i], quote: e.target.value };
-                              setLandingTestimonials(updated);
-                            }}
-                            className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold h-24 text-sm transition-colors"
-                            placeholder="Testimonial quote..."
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Author Name</label>
-                          <input
-                            type="text"
-                            value={t.author}
-                            onChange={e => {
-                              const updated = [...landingTestimonials];
-                              updated[i] = { ...updated[i], author: e.target.value };
-                              setLandingTestimonials(updated);
-                            }}
-                            className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
-                            placeholder="Jane Doe"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Role / Title</label>
-                          <input
-                            type="text"
-                            value={t.role}
-                            onChange={e => {
-                              const updated = [...landingTestimonials];
-                              updated[i] = { ...updated[i], role: e.target.value };
-                              setLandingTestimonials(updated);
-                            }}
-                            className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
-                            placeholder="CEO, Company"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Company / Organization</label>
-                          <input
-                            type="text"
-                            value={t.company}
-                            onChange={e => {
-                              const updated = [...landingTestimonials];
-                              updated[i] = { ...updated[i], company: e.target.value };
-                              setLandingTestimonials(updated);
-                            }}
-                            className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
-                            placeholder="Organization Name"
-                          />
-                        </div>
+                      <button
+                        onClick={handleSaveTestimonial}
+                        className="px-6 py-2 rounded-xl bg-clarisma-gold text-black font-bold hover:bg-white transition-colors"
+                      >
+                        Save Testimonial
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Grid of testimonials */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {testimonials.map(item => (
+                  <div key={item.id} className="bg-black/20 hover:bg-black/30 p-6 rounded-2xl border border-white/5 flex flex-col justify-between group">
+                    <div>
+                      <p className="text-slate-300 italic mb-6 leading-relaxed">
+                        "{item.quote}"
+                      </p>
+                    </div>
+                    <div className="pt-4 border-t border-white/5 flex justify-between items-end">
+                      <div>
+                        <h4 className="font-bold text-white text-base">{item.author}</h4>
+                        <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider">{item.role}</p>
+                        <p className="text-xs text-clarisma-gold font-semibold uppercase">{item.company}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setIsEditingTestimonial(item.id);
+                            setEditTestimonialForm(item);
+                            setIsCreatingTestimonial(false);
+                          }}
+                          className="p-2 border border-white/10 rounded-lg text-slate-300 hover:text-clarisma-gold hover:border-clarisma-gold/30 transition-colors bg-white/5"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTestimonial(item.id)}
+                          className="p-2 border border-white/10 rounded-lg text-slate-300 hover:text-red-500 hover:border-red-500/30 transition-colors bg-white/5"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </div>
-                  ))}
-                  {landingTestimonials.length === 0 && (
-                    <div className="text-center py-12 text-slate-500 border border-dashed border-white/10 rounded-2xl">
-                      No testimonials yet. Click &ldquo;Add Testimonial&rdquo; to create one.
-                    </div>
-                  )}
-                </div>
-                <div className="mt-8">
-                  <button
-                    onClick={async () => {
-                      const ok = await saveLandingSection('testimonials', landingTestimonials);
-                      if (ok) alert('Testimonials saved!');
-                      else alert('Failed to save testimonials');
-                    }}
-                    disabled={isSavingLanding}
-                    className="flex items-center gap-2 bg-clarisma-gold text-black px-8 py-3 rounded-xl font-bold hover:bg-white transition-colors shadow-lg"
-                  >
-                    <Save size={18} />
-                    {isSavingLanding ? 'Saving...' : 'Save All Testimonials'}
-                  </button>
-                </div>
+                  </div>
+                ))}
+                {testimonials.length === 0 && (
+                  <p className="text-slate-400">No testimonials found. Add some to display on the landing page!</p>
+                )}
               </div>
-            )}
-
-            {/* PROGRAMS EDITOR */}
-            {landingActiveSub === 'programs' && (
-              <div className="bg-white/5 p-8 rounded-3xl border border-white/10">
-                <div className="flex justify-between items-center mb-2">
-                  <h2 className="text-2xl font-bold text-white">Program Areas</h2>
-                  <button
-                    onClick={() => setLandingPrograms([...landingPrograms, { title: '', icon: 'BookOpen', color: 'from-blue-500 to-indigo-600', items: [''] }])}
-                    className="flex items-center gap-2 bg-clarisma-gold text-black px-5 py-2 rounded-xl font-bold text-sm hover:bg-white transition-colors"
-                  >
-                    <Plus size={16} /> Add Program
-                  </button>
-                </div>
-                <p className="text-slate-400 text-sm mb-8">Manage the specialized program area cards shown on the landing page.</p>
-
-                <div className="space-y-4">
-                  {landingPrograms.map((prog, i) => (
-                    <div key={i} className="bg-black/30 border border-white/10 rounded-2xl overflow-hidden">
-                      {/* Program header / toggle */}
-                      <div className="flex items-center justify-between p-5 cursor-pointer" onClick={() => setExpandedProgram(expandedProgram === i ? null : i)}>
-                        <div className="flex items-center gap-3">
-                          <GripVertical size={16} className="text-white/20" />
-                          <span className="font-bold text-white">{prog.title || `Program ${i + 1}`}</span>
-                          <span className="text-xs bg-white/10 px-2 py-0.5 rounded-full text-slate-400">{prog.items.length} items</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={e => { e.stopPropagation(); setLandingPrograms(landingPrograms.filter((_, idx) => idx !== i)); }}
-                            className="text-red-400 hover:text-red-300 transition-colors p-1"
-                            title="Delete program"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                          {expandedProgram === i ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
-                        </div>
-                      </div>
-
-                      {expandedProgram === i && (
-                        <div className="px-5 pb-6 border-t border-white/10 pt-5 space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                              <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Title</label>
-                              <input
-                                type="text"
-                                value={prog.title}
-                                onChange={e => {
-                                  const updated = [...landingPrograms];
-                                  updated[i] = { ...updated[i], title: e.target.value };
-                                  setLandingPrograms(updated);
-                                }}
-                                className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
-                                placeholder="Program Title"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Icon</label>
-                              <select
-                                value={prog.icon}
-                                onChange={e => {
-                                  const updated = [...landingPrograms];
-                                  updated[i] = { ...updated[i], icon: e.target.value };
-                                  setLandingPrograms(updated);
-                                }}
-                                className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
-                              >
-                                <option value="BookOpen">Book / Academic</option>
-                                <option value="TrendingUp">Trending / Growth</option>
-                                <option value="Sun">Sun / Wellbeing</option>
-                                <option value="Heart">Heart / Empowerment</option>
-                                <option value="Mic">Mic / Speaking</option>
-                                <option value="Scale">Scale / Equity</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Color Theme</label>
-                              <select
-                                value={prog.color}
-                                onChange={e => {
-                                  const updated = [...landingPrograms];
-                                  updated[i] = { ...updated[i], color: e.target.value };
-                                  setLandingPrograms(updated);
-                                }}
-                                className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
-                              >
-                                <option value="from-blue-500 to-indigo-600">Blue / Indigo</option>
-                                <option value="from-clarisma-gold to-clarisma-orange">Gold / Orange</option>
-                                <option value="from-emerald-500 to-teal-600">Emerald / Teal</option>
-                                <option value="from-rose-500 to-pink-600">Rose / Pink</option>
-                                <option value="from-violet-500 to-purple-600">Violet / Purple</option>
-                                <option value="from-orange-500 to-red-600">Orange / Red</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="flex justify-between items-center mb-2">
-                              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Program Items</label>
-                              <button
-                                onClick={() => {
-                                  const updated = [...landingPrograms];
-                                  updated[i] = { ...updated[i], items: [...updated[i].items, ''] };
-                                  setLandingPrograms(updated);
-                                }}
-                                className="text-xs text-clarisma-gold hover:text-white transition-colors flex items-center gap-1"
-                              >
-                                <Plus size={12} /> Add Item
-                              </button>
-                            </div>
-                            <div className="space-y-2">
-                              {prog.items.map((item, j) => (
-                                <div key={j} className="flex gap-2">
-                                  <input
-                                    type="text"
-                                    value={item}
-                                    onChange={e => {
-                                      const updated = [...landingPrograms];
-                                      const newItems = [...updated[i].items];
-                                      newItems[j] = e.target.value;
-                                      updated[i] = { ...updated[i], items: newItems };
-                                      setLandingPrograms(updated);
-                                    }}
-                                    className="flex-1 bg-black/50 border border-white/20 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-clarisma-gold text-sm transition-colors"
-                                    placeholder={`Item ${j + 1}`}
-                                  />
-                                  <button
-                                    onClick={() => {
-                                      const updated = [...landingPrograms];
-                                      updated[i] = { ...updated[i], items: updated[i].items.filter((_, k) => k !== j) };
-                                      setLandingPrograms(updated);
-                                    }}
-                                    className="text-red-400 hover:text-red-300 transition-colors px-2"
-                                  >
-                                    <X size={14} />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {landingPrograms.length === 0 && (
-                    <div className="text-center py-12 text-slate-500 border border-dashed border-white/10 rounded-2xl">
-                      No programs yet. Click &ldquo;Add Program&rdquo; to create one.
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-8">
-                  <button
-                    onClick={async () => {
-                      const ok = await saveLandingSection('programs', landingPrograms);
-                      if (ok) alert('Programs saved!');
-                      else alert('Failed to save programs');
-                    }}
-                    disabled={isSavingLanding}
-                    className="flex items-center gap-2 bg-clarisma-gold text-black px-8 py-3 rounded-xl font-bold hover:bg-white transition-colors shadow-lg"
-                  >
-                    <Save size={18} />
-                    {isSavingLanding ? 'Saving...' : 'Save All Programs'}
-                  </button>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         ) : activeTab === 'settings' ? (
           <div className="bg-white/5 p-8 rounded-3xl border border-white/10">
@@ -1156,6 +1292,262 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                 <p className="text-white/40">No products found. Start by adding your first digital resource!</p>
               </div>
             )}
+          </div>
+        ) : activeTab === 'services' ? (
+          <div>
+            <div className="flex justify-between items-center mb-8">
+              <h1 className="text-4xl md:text-5xl font-black text-white">Manage Services</h1>
+              {!isCreatingService && !isEditingService && (
+                <button 
+                  onClick={() => {
+                    setIsCreatingService(true);
+                    setEditServiceForm({
+                      title: '',
+                      badge: '',
+                      description: '',
+                      icon_name: 'User',
+                      items: [
+                        { icon: 'Compass', title: '', desc: '' },
+                        { icon: 'GraduationCap', title: '', desc: '' },
+                        { icon: 'Heart', title: '', desc: '' },
+                        { icon: 'Eye', title: '', desc: '' }
+                      ],
+                      link_text: 'Book a Session',
+                      link_url: '#',
+                      color_theme: 'gold',
+                      order_index: (services.length + 1)
+                    });
+                  }}
+                  className="flex items-center gap-2 bg-clarisma-gold text-clarisma-red px-6 py-3 rounded-xl font-bold hover:bg-white transition-all shadow-lg"
+                >
+                  <Plus size={20} />
+                  New Service
+                </button>
+              )}
+            </div>
+
+            {(isCreatingService || isEditingService !== null) && (
+              <div className="bg-white/5 p-8 rounded-3xl border border-white/10 mb-12">
+                <h2 className="text-2xl font-bold mb-6">{isCreatingService ? 'Create Service' : 'Edit Service'}</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Service Title</label>
+                    <input 
+                      type="text" 
+                      value={editServiceForm.title || ''}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, title: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                      placeholder="e.g. RECLAIM YOUR CAREER"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Badge Text</label>
+                    <input 
+                      type="text" 
+                      value={editServiceForm.badge || ''}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, badge: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                      placeholder="e.g. One-on-One Coaching"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold mb-2">Description</label>
+                    <textarea 
+                      rows={3}
+                      value={editServiceForm.description || ''}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, description: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                      placeholder="Describe the service..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Icon Name (Lucide-react)</label>
+                    <input 
+                      type="text" 
+                      value={editServiceForm.icon_name || 'User'}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, icon_name: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                      placeholder="e.g. User, Users, Compass, Shield"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Color Theme</label>
+                    <select 
+                      value={editServiceForm.color_theme || 'gold'}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, color_theme: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                    >
+                      <option value="gold">Gold Theme</option>
+                      <option value="orange">Orange Theme</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Action Button Text</label>
+                    <input 
+                      type="text" 
+                      value={editServiceForm.link_text || 'Book a Session'}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, link_text: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Action Link URL / Section Key</label>
+                    <input 
+                      type="text" 
+                      value={editServiceForm.link_url || '#'}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, link_url: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                      placeholder="e.g. #contact, retreats, or full URL"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Display Order Index</label>
+                    <input 
+                      type="number" 
+                      value={editServiceForm.order_index || 0}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, order_index: parseInt(e.target.value) || 0})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                    />
+                  </div>
+                </div>
+
+                {/* Sub features sub-form */}
+                <div className="space-y-4 border-t border-white/10 pt-6 mb-8">
+                  <div>
+                    <h3 className="text-lg font-bold text-clarisma-gold uppercase tracking-wider">Service Highlights / Key Features</h3>
+                    <p className="text-xs text-slate-400 mt-1">Specify up to 4 key highlights to display inside this bento block.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[0, 1, 2, 3].map((idx) => {
+                      const item = (editServiceForm.items as any[])?.[idx] || { icon: 'Compass', title: '', desc: '' };
+                      const updateItem = (field: string, val: string) => {
+                        const currentItems = [...((editServiceForm.items as any[]) || [])];
+                        while (currentItems.length <= idx) {
+                          currentItems.push({ icon: 'Compass', title: '', desc: '' });
+                        }
+                        currentItems[idx] = { ...currentItems[idx], [field]: val };
+                        setEditServiceForm({ ...editServiceForm, items: currentItems });
+                      };
+
+                      return (
+                        <div key={idx} className="bg-black/40 p-4 rounded-2xl border border-white/5 space-y-3">
+                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Highlight {idx + 1}</h4>
+                          <div className="grid grid-cols-1 gap-2">
+                            <input
+                              type="text"
+                              value={item.icon || ''}
+                              onChange={(e) => updateItem('icon', e.target.value)}
+                              placeholder="Lucide Icon (e.g., Compass, Heart, Eye)"
+                              className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-clarisma-gold"
+                            />
+                            <input
+                              type="text"
+                              value={item.title || ''}
+                              onChange={(e) => updateItem('title', e.target.value)}
+                              placeholder="Feature Title (e.g., Career Clarity)"
+                              className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-clarisma-gold"
+                            />
+                            <input
+                              type="text"
+                              value={item.desc || ''}
+                              onChange={(e) => updateItem('desc', e.target.value)}
+                              placeholder="Short Subtitle (e.g., Strengths roadmap)"
+                              className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-clarisma-gold"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <button 
+                    onClick={handleSaveService}
+                    className="bg-clarisma-gold text-black px-6 py-3 rounded-xl font-bold hover:bg-white transition-colors"
+                  >
+                    Save Service
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsCreatingService(false);
+                      setIsEditingService(null);
+                      setEditServiceForm({});
+                    }}
+                    className="bg-white/10 text-white px-6 py-3 rounded-xl hover:bg-white/20 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {services.map((service) => (
+                <div key={service.id} className="bg-white/5 p-6 rounded-3xl border border-white/10 flex flex-col justify-between">
+                  <div>
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        {service.badge && (
+                          <span className="text-[10px] font-bold text-clarisma-gold border border-clarisma-gold/20 bg-clarisma-gold/10 px-2.5 py-1 rounded-full uppercase">
+                            {service.badge}
+                          </span>
+                        )}
+                        <h3 className="text-2xl font-black text-white mt-2 uppercase">{service.title}</h3>
+                      </div>
+                      <span className="text-slate-500 font-mono text-sm">Theme: {service.color_theme}</span>
+                    </div>
+                    <p className="text-sm text-slate-300 leading-relaxed mb-4">{service.description}</p>
+                    
+                    {service.items && (
+                      <div className="bg-black/30 p-3 rounded-xl border border-white/5 mb-4">
+                        <p className="text-xs font-bold text-slate-400 mb-2 uppercase">Highlights:</p>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
+                          {((typeof service.items === 'string' ? JSON.parse(service.items || '[]') : service.items) || []).map((feat: any, i: number) => (
+                            <div key={i} className="flex items-center gap-1.5 truncate">
+                              <span className="text-clarisma-gold font-bold">✓</span>
+                              <span className="truncate">{feat.title || 'Untitled Highlight'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center pt-4 border-t border-white/10">
+                    <span className="text-xs text-slate-400">Order: {service.order_index}</span>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => {
+                          setIsEditingService(service.id);
+                          setEditServiceForm({
+                            ...service,
+                            items: typeof service.items === 'string' ? JSON.parse(service.items) : service.items
+                          });
+                          setIsCreatingService(false);
+                        }}
+                        className="p-2 border border-white/10 rounded-lg text-slate-300 hover:text-clarisma-gold hover:border-clarisma-gold/30 transition-colors bg-white/5"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteService(service.id)}
+                        className="p-2 border border-white/10 rounded-lg text-slate-300 hover:text-red-500 hover:border-red-500/30 transition-colors bg-white/5"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {services.length === 0 && !isCreatingService && (
+                <div className="col-span-full text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/20">
+                  <p className="text-white/40">No services found. Click "New Service" to add one.</p>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <>

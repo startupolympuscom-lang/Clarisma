@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 
 interface AboutProps {
@@ -6,6 +6,38 @@ interface AboutProps {
 }
 
 const About: React.FC<AboutProps> = ({ onNavigate }) => {
+  const [badge, setBadge] = useState('About Clarisma');
+  const [heading1, setHeading1] = useState('Clarify your charisma.');
+  const [heading2, setHeading2] = useState('Magnify your impact.');
+  const [bodyP1, setBodyP1] = useState('Clarisma is a personal and professional empowerment platform created by Professor Dr. Claris Harbon. We help professionals in different fields, disciplines and schools, and at any stage of their career, such as, but not exclusively limited to, law, to academia, and human rights, reclaim their confidence and chart intentional career paths.');
+  const [bodyP2, setBodyP2] = useState('Our mission is to fuse legal wisdom, storytelling, and leadership into a transformational journey that honors your expertise while empowering your next chapter.');
+  const [founderName, setFounderName] = useState('Dr. Claris Harbon');
+  const [founderTitle, setFounderTitle] = useState('Associate Professor in International Law and in Gender Studies.');
+
+  const [founderImage, setFounderImage] = useState('https://aui.ma/hs-fs/hubfs/Faculty/Harbon%20Claris-1.jpg?width=385&height=385&name=Harbon%20Claris-1.jpg');
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.about_badge) setBadge(data.about_badge);
+          if (data.about_heading1) setHeading1(data.about_heading1);
+          if (data.about_heading2) setHeading2(data.about_heading2);
+          if (data.about_body_p1) setBodyP1(data.about_body_p1);
+          if (data.about_body_p2) setBodyP2(data.about_body_p2);
+          if (data.about_founder_name) setFounderName(data.about_founder_name);
+          if (data.about_founder_title) setFounderTitle(data.about_founder_title);
+          if (data.about_founder_image_url) setFounderImage(data.about_founder_image_url);
+        }
+      } catch (err) {
+        console.error('Failed to load about section settings', err);
+      }
+    };
+    fetchSettings();
+  }, []);
+
   return (
     <section id="about" className="px-4 md:px-8 max-w-7xl mx-auto w-full py-20">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -16,8 +48,8 @@ const About: React.FC<AboutProps> = ({ onNavigate }) => {
           <div className="relative h-[600px] w-full bg-slate-800 rounded-[40px] overflow-hidden border border-slate-700 shadow-2xl group">
              {/* Founder Image - Using a reliable placeholder for the demo */}
              <img 
-               src="https://aui.ma/hs-fs/hubfs/Faculty/Harbon%20Claris-1.jpg?width=385&height=385&name=Harbon%20Claris-1.jpg" 
-               alt="Professor Dr. Claris Harbon" 
+               src={founderImage} 
+               alt={founderName} 
                className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
              />
              
@@ -45,27 +77,23 @@ const About: React.FC<AboutProps> = ({ onNavigate }) => {
 
         {/* Content Side */}
         <div className="order-1 lg:order-2">
-          <h2 className="text-sm font-bold text-clarisma-gold uppercase tracking-widest mb-4">About Clarisma</h2>
+          <h2 className="text-sm font-bold text-clarisma-gold uppercase tracking-widest mb-4">{badge}</h2>
           <h3 className="text-4xl md:text-6xl font-extrabold leading-tight mb-6">
-            Clarify your charisma. <br />
-            <span className="text-slate-500">Magnify your impact.</span>
+            {heading1} <br />
+            <span className="text-slate-500">{heading2}</span>
           </h3>
           
           <div className="space-y-6 text-lg text-slate-300 leading-relaxed mb-8">
-            <p>
-              Clarisma is a personal and professional empowerment platform created by <span className="text-white font-semibold">Professor Dr. Claris Harbon</span>. We help professionals in different fields, disciplines and schools, and at any stage of their career, such as, but not exclusively limited to, law, to academia, and human rights, reclaim their confidence and chart intentional career paths.
-            </p>
-            <p>
-              Our mission is to fuse legal wisdom, storytelling, and leadership into a transformational journey that honors your expertise while empowering your next chapter.
-            </p>
+            <p dangerouslySetInnerHTML={{ __html: bodyP1 }} />
+            <p dangerouslySetInnerHTML={{ __html: bodyP2 }} />
           </div>
 
           {/* Founder Bio Card */}
           <div className="glass-card p-6 rounded-2xl border-l-4 border-l-clarisma-gold mb-8 relative overflow-hidden group hover:bg-white/5 transition-colors">
             <div className="relative z-10">
-                <h4 className="text-white font-bold text-xl mb-2">Dr. Claris Harbon</h4>
+                <h4 className="text-white font-bold text-xl mb-2">{founderName}</h4>
                 <p className="text-sm text-slate-300 mb-4 leading-relaxed font-medium">
-                   Associate Professor in International Law and in Gender Studies.
+                   {founderTitle}
                 </p>
                 
                 <div className="flex flex-wrap gap-4 items-start">

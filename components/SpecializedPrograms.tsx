@@ -1,112 +1,75 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BookOpen, TrendingUp, Sun, Heart, Mic, Scale, CheckCircle2, ArrowRight } from 'lucide-react';
 
-const ICON_MAP: Record<string, React.ReactNode> = {
-  BookOpen: <BookOpen size={28} />,
-  TrendingUp: <TrendingUp size={28} />,
-  Sun: <Sun size={28} />,
-  Heart: <Heart size={28} />,
-  Mic: <Mic size={28} />,
-  Scale: <Scale size={28} />,
-};
-
-const COLOR_OPTIONS = [
-  "from-blue-500 to-indigo-600",
-  "from-clarisma-gold to-clarisma-orange",
-  "from-emerald-500 to-teal-600",
-  "from-rose-500 to-pink-600",
-  "from-violet-500 to-purple-600",
-  "from-orange-500 to-red-600",
-];
-
-const DEFAULT_PROGRAMS = [
-  {
-    title: "Academic Excellence",
-    icon: "BookOpen",
-    color: "from-blue-500 to-indigo-600",
-    items: [
-      "Mastering Research & Thesis Writing",
-      "PhD Defense Preparation",
-      "Time & Energy Management",
-      "Building Research Networks"
-    ]
-  },
-  {
-    title: "Leadership & Growth",
-    icon: "TrendingUp",
-    color: "from-clarisma-gold to-clarisma-orange",
-    items: [
-      "Strategic Leadership Development",
-      "Career Navigation & Goal-Setting",
-      "Personal Branding Workshops",
-      "Critical Thinking & Innovation"
-    ]
-  },
-  {
-    title: "Well-being & Resilience",
-    icon: "Sun",
-    color: "from-emerald-500 to-teal-600",
-    items: [
-      "Mindfulness & Resilience Retreats",
-      "Self-Esteem & Confidence Building",
-      "Emotional Intelligence Training",
-      "Stress Management Techniques"
-    ]
-  },
-  {
-    title: "Women's Empowerment",
-    icon: "Heart",
-    color: "from-rose-500 to-pink-600",
-    items: [
-      "Feminist Leadership Training",
-      "Women's Empowerment Toolbox",
-      "Support Networks & Advocacy",
-      "Community Engagement Programs"
-    ]
-  },
-  {
-    title: "Professional Skills",
-    icon: "Mic",
-    color: "from-violet-500 to-purple-600",
-    items: [
-      "Public Speaking Mastery",
-      "Interview & Application Coaching",
-      "Networking for Success",
-      "Presentation Skills Boost"
-    ]
-  },
-  {
-    title: "Equity & Inclusion",
-    icon: "Scale",
-    color: "from-orange-500 to-red-600",
-    items: [
-      "Diversity & Inclusion Training",
-      "Legal Literacy Seminars",
-      "Workplace Equity Workshops",
-      "Rights & Responsibilities Education"
-    ]
-  }
-];
-
 const SpecializedPrograms: React.FC = () => {
-  const [programs, setPrograms] = useState(DEFAULT_PROGRAMS);
-
-  useEffect(() => {
-    const fetchContent = async () => {
-      try {
-        const res = await fetch('/api/landing');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.programs && Array.isArray(data.programs) && data.programs.length > 0) {
-            setPrograms(data.programs);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch programs', err);
-      }
-    };
-    fetchContent();
-  }, []);
+  const programs = [
+    {
+      title: "Academic Excellence",
+      icon: <BookOpen size={28} />,
+      color: "from-blue-500 to-indigo-600",
+      items: [
+        "Mastering Research & Thesis Writing",
+        "PhD Defense Preparation",
+        "Time & Energy Management",
+        "Building Research Networks"
+      ]
+    },
+    {
+      title: "Leadership & Growth",
+      icon: <TrendingUp size={28} />,
+      color: "from-clarisma-gold to-clarisma-orange",
+      items: [
+        "Strategic Leadership Development",
+        "Career Navigation & Goal-Setting",
+        "Personal Branding Workshops",
+        "Critical Thinking & Innovation"
+      ]
+    },
+    {
+      title: "Well-being & Resilience",
+      icon: <Sun size={28} />,
+      color: "from-emerald-500 to-teal-600",
+      items: [
+        "Mindfulness & Resilience Retreats",
+        "Self-Esteem & Confidence Building",
+        "Emotional Intelligence Training",
+        "Stress Management Techniques"
+      ]
+    },
+    {
+      title: "Women's Empowerment",
+      icon: <Heart size={28} />,
+      color: "from-rose-500 to-pink-600",
+      items: [
+        "Feminist Leadership Training",
+        "Women's Empowerment Toolbox",
+        "Support Networks & Advocacy",
+        "Community Engagement Programs"
+      ]
+    },
+    {
+      title: "Professional Skills",
+      icon: <Mic size={28} />,
+      color: "from-violet-500 to-purple-600",
+      items: [
+        "Public Speaking Mastery",
+        "Interview & Application Coaching",
+        "Networking for Success",
+        "Presentation Skills Boost"
+      ]
+    },
+    {
+      title: "Equity & Inclusion",
+      icon: <Scale size={28} />,
+      color: "from-orange-500 to-red-600",
+      items: [
+        "Diversity & Inclusion Training",
+        "Legal Literacy Seminars",
+        "Workplace Equity Workshops",
+        "Rights & Responsibilities Education"
+      ]
+    }
+  ];
 
   return (
     <section id="programs" className="py-32 relative overflow-hidden">
@@ -145,7 +108,7 @@ const SpecializedPrograms: React.FC = () => {
 
               <div className="relative z-10">
                 <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${program.color} flex items-center justify-center text-white shadow-xl mb-8 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}>
-                  {ICON_MAP[program.icon as string] ?? <BookOpen size={28} />}
+                  {program.icon}
                 </div>
                 
                 <h3 className="text-2xl font-black text-white mb-6 group-hover:text-clarisma-gold transition-colors">

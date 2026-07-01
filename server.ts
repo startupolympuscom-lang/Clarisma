@@ -100,19 +100,97 @@ async function initDB() {
     `);
 
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS landing_content (
-        section VARCHAR(100) PRIMARY KEY,
-        content JSONB NOT NULL,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      CREATE TABLE IF NOT EXISTS testimonials (
+        id SERIAL PRIMARY KEY,
+        quote TEXT NOT NULL,
+        author VARCHAR(255) NOT NULL,
+        role VARCHAR(255) NOT NULL,
+        company VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
-    // Insert default video URL if not exists
+
     await pool.query(`
-      INSERT INTO settings (key, value)
-      VALUES ('hero_video_url', 'https://drive.google.com/file/d/1m8nUWm5US-8l63U0lolu0JZBK7OVmX0k/view?usp=sharing')
-      ON CONFLICT (key) DO NOTHING;
+      CREATE TABLE IF NOT EXISTS services (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        badge VARCHAR(255) DEFAULT '',
+        description TEXT NOT NULL,
+        icon_name VARCHAR(100) DEFAULT 'User',
+        items TEXT DEFAULT '[]',
+        link_text VARCHAR(255) DEFAULT 'Book a Session',
+        link_url TEXT DEFAULT '#',
+        color_theme VARCHAR(100) DEFAULT 'gold',
+        order_index INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
+
+    const servicesCount = await pool.query('SELECT COUNT(*) FROM services');
+    if (parseInt(servicesCount.rows[0].count) === 0) {
+      await pool.query(`
+        INSERT INTO services (title, badge, description, icon_name, items, link_text, link_url, color_theme, order_index)
+        VALUES
+        (
+          'RECLAIM YOUR CAREER', 
+          'One-on-One Coaching', 
+          'Personalized coaching for professionals at all stages—from students to seasoned experts—navigating career transitions with visibility and recognition.', 
+          'User', 
+          '[{"icon":"Compass","title":"Career Clarity","desc":"Strengths assessment & roadmapping"},{"icon":"GraduationCap","title":"Academic Edge","desc":"PhD defense & research strategies"},{"icon":"Heart","title":"Resilience","desc":"Burnout recovery & self-care"},{"icon":"Eye","title":"Visibility","desc":"Strategic personal branding"}]', 
+          'Book a Session', 
+          'https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1yhkKwB4s2LYWJBw0qFheEvjNwgyGiXgYg8KZsoaMbPndGdLhpYmBJKPayNG6_PdtiIe-xBuDW', 
+          'gold', 
+          1
+        ),
+        (
+          'COLLECTIVE GROWTH', 
+          'Group Programs', 
+          'Transformative workshops and retreats designed to build confidence and foster supportive communities.', 
+          'Users', 
+          '[{"icon":"Mic","title":"Confidence","desc":"Public speaking & EQ"},{"icon":"Briefcase","title":"Leadership","desc":"Career navigation"},{"icon":"BookOpen","title":"Academic","desc":"Thesis & research"},{"icon":"Megaphone","title":"Advocacy","desc":"Women''s empowerment"}]', 
+          'View Retreats', 
+          'retreats', 
+          'orange', 
+          2
+        )
+      `);
+    }
+    
+    // Seed default testimonials if table is empty
+    const testCount = await pool.query('SELECT COUNT(*) FROM testimonials');
+    if (parseInt(testCount.rows[0].count) === 0) {
+      await pool.query(`
+        INSERT INTO testimonials (quote, author, role, company)
+        VALUES 
+        ('Working with Dr. Harbon was one of the most meaningful experiences of my studies. Through our projects, and my volunteering to promote equality and discuss women’s rights in Morocco, I learned the power of creating spaces where women can grow, learn, and be heard. Her fiery soul, constant energy, and ability to find meaning in everything around her have shaped the way I approach challenges and purpose.', 'Kenza Sifi', 'Student of International Relations & Affair', 'University Al Akhawayn'),
+        ('At Startup Olympus, we look for founders who are solving real problems with passion. Dr. Claris Harbon is the embodiment of that spirit. Through Clarisma, she is redefining what it means to be empowered in both life and business. Her energy is infectious, and her dedication to helping others unlock their potential is genuine. Dr. Harbon is a force of nature.', 'Abderrahim Hamidine', 'Director', 'Startup Olympus')
+      `);
+    }
+    
+    // Insert default settings if not exists
+    const defaultSettings = {
+      hero_video_url: 'https://drive.google.com/file/d/1m8nUWm5US-8l63U0lolu0JZBK7OVmX0k/view?usp=sharing',
+      hero_title: 'OWN YOUR NARRATIVE.',
+      hero_desc: 'Empowering high-impact leaders to command their space with unshakeable clarity and authentic authority.',
+      about_badge: 'About Clarisma',
+      about_heading1: 'Clarify your charisma.',
+      about_heading2: 'Magnify your impact.',
+      about_body_p1: 'Clarisma is a personal and professional empowerment platform created by Professor Dr. Claris Harbon. We help professionals in different fields, disciplines and schools, and at any stage of their career, such as, but not exclusively limited to, law, to academia, and human rights, reclaim their confidence and chart intentional career paths.',
+      about_body_p2: 'Our mission is to fuse legal wisdom, storytelling, and leadership into a transformational journey that honors your expertise while empowering your next chapter.',
+      about_founder_name: 'Dr. Claris Harbon',
+      about_founder_title: 'Associate Professor in International Law and in Gender Studies.',
+      methodology_badge: 'Our Methodology',
+      methodology_heading: 'A Blueprint for Professional Mastery',
+      methodology_desc: "We don't believe in one-size-fits-all. Our structured approach is designed to adapt to your unique challenges while maintaining a rigorous focus on results."
+    };
+
+    for (const [key, value] of Object.entries(defaultSettings)) {
+      await pool.query(`
+        INSERT INTO settings (key, value)
+        VALUES ($1, $2)
+        ON CONFLICT (key) DO NOTHING
+      `, [key, value]);
+    }
     
     // Update placeholder if it was already inserted
     await pool.query(`
@@ -169,9 +247,11 @@ const authenticateToken = (req: express.Request, res: express.Response, next: ex
 
 // Auth login
 app.post('/api/auth/login', async (req, res) => {
-  const { pseudo, password } = req.body;
+  const { passcode } = req.body;
   
-  if (pseudo === ADMIN_PSEUDO && password === ADMIN_PASSWORD) {
+  const normalizedPasscode = passcode?.toLowerCase()?.trim();
+  
+  if (normalizedPasscode === 'charlie lima alpha romeo india mike') {
     const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ token });
   } else {
@@ -239,6 +319,87 @@ app.delete('/api/retreats/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Get all services
+app.get('/api/services', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM services ORDER BY order_index ASC, id ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create a service
+app.post('/api/services', authenticateToken, async (req, res) => {
+  const { title, badge, description, icon_name, items, link_text, link_url, color_theme, order_index } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO services (title, badge, description, icon_name, items, link_text, link_url, color_theme, order_index) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+      [
+        title,
+        badge || '',
+        description,
+        icon_name || 'User',
+        typeof items === 'string' ? items : JSON.stringify(items || []),
+        link_text || 'Book a Session',
+        link_url || '#',
+        color_theme || 'gold',
+        order_index || 0
+      ]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update a service
+app.put('/api/services/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { title, badge, description, icon_name, items, link_text, link_url, color_theme, order_index } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE services SET title = $1, badge = $2, description = $3, icon_name = $4, items = $5, link_text = $6, link_url = $7, color_theme = $8, order_index = $9 WHERE id = $10 RETURNING *',
+      [
+        title,
+        badge || '',
+        description,
+        icon_name || 'User',
+        typeof items === 'string' ? items : JSON.stringify(items || []),
+        link_text || 'Book a Session',
+        link_url || '#',
+        color_theme || 'gold',
+        order_index || 0,
+        id
+      ]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete a service
+app.delete('/api/services/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM services WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+    res.json({ message: 'Service deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get all products
 app.get('/api/products', async (req, res) => {
   try {
@@ -293,6 +454,66 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
     res.json({ message: 'Product deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get all testimonials
+app.get('/api/testimonials', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM testimonials ORDER BY id ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create a testimonial (admin only)
+app.post('/api/testimonials', authenticateToken, async (req, res) => {
+  const { quote, author, role, company } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO testimonials (quote, author, role, company) VALUES ($1, $2, $3, $4) RETURNING *',
+      [quote, author, role, company]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update a testimonial (admin only)
+app.put('/api/testimonials/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { quote, author, role, company } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE testimonials SET quote = $1, author = $2, role = $3, company = $4 WHERE id = $5 RETURNING *',
+      [quote, author, role, company, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Testimonial not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete a testimonial (admin only)
+app.delete('/api/testimonials/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM testimonials WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Testimonial not found' });
+    }
+    res.json({ message: 'Testimonial deleted successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -375,39 +596,6 @@ app.put('/api/reservations/:id/status', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Reservation not found' });
     }
     res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get all landing content sections
-app.get('/api/landing', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT section, content FROM landing_content');
-    const content = result.rows.reduce((acc: any, row: any) => {
-      acc[row.section] = row.content;
-      return acc;
-    }, {});
-    res.json(content);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Update a landing content section (admin only)
-app.put('/api/landing/:section', authenticateToken, async (req, res) => {
-  const { section } = req.params;
-  const { content } = req.body;
-  try {
-    await pool.query(
-      `INSERT INTO landing_content (section, content, updated_at)
-       VALUES ($1, $2, NOW())
-       ON CONFLICT (section) DO UPDATE SET content = $2, updated_at = NOW()`,
-      [section, JSON.stringify(content)]
-    );
-    res.json({ message: 'Section updated successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

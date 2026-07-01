@@ -1,7 +1,11 @@
 import React from 'react';
 import { Instagram, Linkedin, Facebook } from 'lucide-react';
 
-const Footer: React.FC = () => {
+interface FooterProps {
+  onNavigate?: (destination: string) => void;
+}
+
+const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   return (
     <footer className="border-t border-white/5 bg-black/40 backdrop-blur-md pt-20 pb-10 px-4 md:px-8">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
@@ -24,7 +28,7 @@ const Footer: React.FC = () => {
               <li><a href="#services" className="hover:text-clarisma-gold transition-colors">Services</a></li>
               <li><a href="#about" className="hover:text-clarisma-gold transition-colors">About</a></li>
               <li><a href="#contact" className="hover:text-clarisma-gold transition-colors">Contact</a></li>
-              <li><button onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'admin' }))} className="hover:text-clarisma-gold transition-colors">Admin Login</button></li>
+              <li><button onClick={() => onNavigate && onNavigate('admin')} className="hover:text-clarisma-gold transition-colors">Admin Login</button></li>
             </ul>
           </div>
           <div>

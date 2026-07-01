@@ -40,18 +40,37 @@ const HashLinkHandler = () => {
   return null;
 };
 
-const HomePage: React.FC<{ onNavigate: (dest: string) => void }> = ({ onNavigate }) => (
-  <main className="flex flex-col gap-24 md:gap-32 pb-20">
-    <Hero />
-    <About onNavigate={onNavigate} />
-    <ServicesBento onNavigate={onNavigate} />
-    <TargetAudience />
-    <SpecializedPrograms />
-    <Process />
-    <Testimonials />
-    <Contact />
-  </main>
-);
+const HomePage: React.FC<{ onNavigate: (dest: string) => void }> = ({ onNavigate }) => {
+  const [settings, setSettings] = React.useState<any>({});
+  
+  React.useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          setSettings(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch settings', err);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  return (
+    <main className="flex flex-col gap-24 md:gap-32 pb-20">
+      {settings.show_hero !== 'false' && <Hero />}
+      {settings.show_about !== 'false' && <About onNavigate={onNavigate} />}
+      {settings.show_services !== 'false' && <ServicesBento onNavigate={onNavigate} />}
+      {settings.show_target_audience !== 'false' && <TargetAudience />}
+      {settings.show_specialized_programs !== 'false' && <SpecializedPrograms />}
+      {settings.show_process !== 'false' && <Process />}
+      {settings.show_testimonials !== 'false' && <Testimonials />}
+      {settings.show_contact !== 'false' && <Contact />}
+    </main>
+  );
+};
 
 const App: React.FC = () => {
   const navigate = useNavigate();
@@ -141,7 +160,7 @@ const App: React.FC = () => {
             <Route path="*" element={<HomePage onNavigate={handleNavigation} />} />
           </Routes>
           
-          <Footer />
+          <Footer onNavigate={handleNavigation} />
         </div>
       </div>
     );

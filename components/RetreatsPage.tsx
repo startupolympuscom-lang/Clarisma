@@ -254,14 +254,6 @@ const RetreatsPage: React.FC<RetreatsPageProps> = ({ onBack, onAdminAccess }) =>
           <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> 
           Back to Home
         </button>
-
-        {/* Admin Access Button */}
-        <button 
-          onClick={onAdminAccess}
-          className="text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-clarisma-gold transition-colors border border-white/10 px-4 py-2 rounded-full hover:border-clarisma-gold/30"
-        >
-          Admin Access
-        </button>
       </div>
 
       {/* Header */}

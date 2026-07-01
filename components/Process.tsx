@@ -1,7 +1,28 @@
-import React from 'react';
-import { Search, Target, Map, Zap, BarChart3, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Target, Map, TrendingUp, BarChart3, ArrowRight, Compass } from 'lucide-react';
 
 const Process: React.FC = () => {
+  const [badge, setBadge] = useState('Our Methodology');
+  const [heading, setHeading] = useState('A Blueprint for Professional Mastery');
+  const [desc, setDesc] = useState("We don't believe in one-size-fits-all. Our structured approach is designed to adapt to your unique challenges while maintaining a rigorous focus on results.");
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.methodology_badge) setBadge(data.methodology_badge);
+          if (data.methodology_heading) setHeading(data.methodology_heading);
+          if (data.methodology_desc) setDesc(data.methodology_desc);
+        }
+      } catch (err) {
+        console.error('Failed to load methodology settings', err);
+      }
+    };
+    fetchSettings();
+  }, []);
+
   const steps = [
     { 
       id: '01', 
@@ -28,7 +49,7 @@ const Process: React.FC = () => {
       id: '04', 
       title: 'Implementation', 
       desc: 'Guided execution with continuous support, ensuring you stay on track and overcome obstacles.',
-      icon: <Zap className="text-clarisma-orange" size={24} />,
+      icon: <TrendingUp className="text-clarisma-orange" size={24} />,
       color: 'from-clarisma-orange/20 to-transparent'
     },
     { 
@@ -49,14 +70,13 @@ const Process: React.FC = () => {
       <div className="flex flex-col md:flex-row items-start justify-between mb-20 gap-8">
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-clarisma-gold/10 border border-clarisma-gold/20 text-clarisma-gold text-xs font-bold uppercase tracking-widest mb-6">
-            Our Methodology
+            {badge}
           </div>
           <h2 className="text-4xl md:text-6xl font-black mb-6 leading-tight">
-            A Blueprint for <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-clarisma-gold via-clarisma-orange to-clarisma-gold animate-shimmer bg-[length:200%_auto]">Professional Mastery</span>
+            {heading}
           </h2>
           <p className="text-slate-400 text-lg md:text-xl leading-relaxed">
-            We don't believe in one-size-fits-all. Our structured approach is designed to adapt to your unique challenges while maintaining a rigorous focus on results.
+            {desc}
           </p>
         </div>
         
@@ -118,7 +138,7 @@ const Process: React.FC = () => {
       <div className="mt-20 p-8 rounded-[2.5rem] bg-gradient-to-r from-clarisma-gold/10 to-transparent border border-clarisma-gold/10 flex flex-col md:flex-row items-center justify-between gap-8">
         <div className="flex items-center gap-6">
           <div className="w-16 h-16 rounded-2xl bg-clarisma-gold/20 flex items-center justify-center shrink-0">
-            <Zap className="text-clarisma-gold" size={32} />
+            <Compass className="text-clarisma-gold" size={32} />
           </div>
           <div>
             <h4 className="text-xl font-bold text-white mb-1">Ready to start the journey?</h4>
