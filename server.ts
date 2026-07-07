@@ -14,6 +14,49 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
+// Fallback body parser middleware to ensure stringified JSON bodies are parsed successfully
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    return next();
+  }
+
+  if (typeof req.body === 'string') {
+    const trimmed = req.body.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        req.body = JSON.parse(trimmed);
+      } catch (e) {
+        // Leave as string
+      }
+    }
+    if (!req.body) req.body = {};
+    return next();
+  }
+
+  let data = '';
+  req.on('data', chunk => {
+    data += chunk;
+  });
+  req.on('end', () => {
+    if (data) {
+      const trimmed = data.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          req.body = JSON.parse(trimmed);
+        } catch (e) {
+          req.body = data;
+        }
+      } else {
+        req.body = data;
+      }
+    }
+    if (!req.body) {
+      req.body = {};
+    }
+    next();
+  });
+});
+
 // Database connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
