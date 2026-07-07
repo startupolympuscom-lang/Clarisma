@@ -167,9 +167,10 @@ async function initDB() {
     }
     
     // Insert default settings if not exists
-    const defaultSettings = {
+    const defaultSettings: Record<string, string> = {
       hero_video_url: 'https://drive.google.com/file/d/1m8nUWm5US-8l63U0lolu0JZBK7OVmX0k/view?usp=sharing',
-      hero_title: 'OWN YOUR NARRATIVE.',
+      hero_title: 'OWN YOUR',
+      hero_title_italic: 'NARRATIVE.',
       hero_desc: 'Empowering high-impact leaders to command their space with unshakeable clarity and authentic authority.',
       about_badge: 'About Clarisma',
       about_heading1: 'Clarify your charisma.',
@@ -178,10 +179,32 @@ async function initDB() {
       about_body_p2: 'Our mission is to fuse legal wisdom, storytelling, and leadership into a transformational journey that honors your expertise while empowering your next chapter.',
       about_founder_name: 'Dr. Claris Harbon',
       about_founder_title: 'Associate Professor in International Law and in Gender Studies.',
+      about_founder_image_url: 'https://aui.ma/hs-fs/hubfs/Faculty/Harbon%20Claris-1.jpg?width=385&height=385&name=Harbon%20Claris-1.jpg',
+      services_title_1: 'LEVEL UP',
+      services_title_2: 'YOUR',
+      services_title_highlight: 'IMPACT.',
+      services_desc: "Modern tools for the modern professional. We don't just coach; we catalyze your career trajectory with precision.",
       methodology_badge: 'Our Methodology',
       methodology_heading: 'A Blueprint for Professional Mastery',
       methodology_desc: "We don't believe in one-size-fits-all. Our structured approach is designed to adapt to your unique challenges while maintaining a rigorous focus on results."
     };
+
+    try {
+      // Migrate hero_title if it was originally 'OWN YOUR NARRATIVE.' and there is no hero_title_italic yet
+      const heroTitleCheck = await pool.query("SELECT value FROM settings WHERE key = 'hero_title'");
+      const heroTitleItalicCheck = await pool.query("SELECT value FROM settings WHERE key = 'hero_title_italic'");
+      
+      if (
+        heroTitleCheck.rows.length > 0 && 
+        heroTitleCheck.rows[0].value === 'OWN YOUR NARRATIVE.' &&
+        heroTitleItalicCheck.rows.length === 0
+      ) {
+        await pool.query("UPDATE settings SET value = 'OWN YOUR' WHERE key = 'hero_title'");
+        await pool.query("INSERT INTO settings (key, value) VALUES ('hero_title_italic', 'NARRATIVE.') ON CONFLICT (key) DO UPDATE SET value = 'NARRATIVE.'");
+      }
+    } catch (err) {
+      console.error('Error during settings migration:', err);
+    }
 
     for (const [key, value] of Object.entries(defaultSettings)) {
       await pool.query(`
@@ -561,15 +584,18 @@ app.get('/api/settings', async (req, res) => {
 app.put('/api/settings', authenticateToken, async (req, res) => {
   const { settings } = req.body;
   try {
-    for (const [key, value] of Object.entries(settings)) {
-      await pool.query(
-        'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
-        [key, value]
-      );
+    if (settings && typeof settings === 'object') {
+      for (const [key, value] of Object.entries(settings)) {
+        const safeValue = value === undefined || value === null ? '' : String(value);
+        await pool.query(
+          'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
+          [key, safeValue]
+        );
+      }
     }
     res.json({ message: 'Settings updated successfully' });
   } catch (err) {
-    console.error(err);
+    console.error('Error saving settings:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
