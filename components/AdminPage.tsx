@@ -62,7 +62,7 @@ interface FormField {
 }
 
 const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [passcode, setPasscode] = useState('');
   const [retreats, setRetreats] = useState<Retreat[]>([]);
   const [isEditing, setIsEditing] = useState<number | null>(null);
@@ -93,16 +93,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [isCreatingService, setIsCreatingService] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    if (token) {
-      setIsAuthenticated(true);
-      fetchRetreats();
-      fetchProducts();
-      fetchSettings();
-      fetchReservations();
-      fetchTestimonials();
-      fetchServices();
-    }
+    setIsAuthenticated(true);
+    fetchRetreats();
+    fetchProducts();
+    fetchSettings();
+    fetchReservations();
+    fetchTestimonials();
+    fetchServices();
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -129,7 +126,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
-    setIsAuthenticated(false);
+    if (onBack) {
+      onBack();
+    } else {
+      setIsAuthenticated(false);
+    }
   };
 
   const fetchRetreats = async () => {
