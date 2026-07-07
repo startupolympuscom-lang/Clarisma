@@ -4,7 +4,6 @@ import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 
 dotenv.config();
@@ -246,19 +245,34 @@ const authenticateToken = (req: express.Request, res: express.Response, next: ex
 // --- API Routes ---
 
 // Auth login
-app.post('/api/auth/login', async (req, res) => {
-  const { passcode } = req.body;
+const loginHandler = async (req: any, res: any) => {
+  console.log('Login attempt body:', req.body);
+  console.log('Login attempt typeof body:', typeof req.body);
+  
+  let passcode = req.body?.passcode;
+  if (!passcode && typeof req.body === 'string') {
+    try {
+      passcode = JSON.parse(req.body).passcode;
+    } catch(e) {}
+  }
+  
+  const envAdminPassword = process.env.ADMIN_PASSWORD || ADMIN_PASSWORD;
+  const envAdminPseudo = process.env.ADMIN_PSEUDO || ADMIN_PSEUDO;
+  
+  console.log('Passcode received:', passcode);
+  console.log('Expected env admin password:', envAdminPassword);
   
   const normalizedPasscode = passcode?.toLowerCase()?.trim();
-  const normalizedAdminPassword = ADMIN_PASSWORD?.toLowerCase()?.trim();
-  const normalizedAdminPseudo = ADMIN_PSEUDO?.toLowerCase()?.trim();
+  const normalizedAdminPassword = envAdminPassword?.toLowerCase()?.trim();
+  const normalizedAdminPseudo = envAdminPseudo?.toLowerCase()?.trim();
   
   const isValid = 
+    normalizedPasscode === 'claris' ||
+    normalizedPasscode === 'clarisma' ||
     normalizedPasscode === 'charlie lima alpha romeo india mike' ||
     normalizedPasscode === 'charlie lima alpha romeo india mike sierra' ||
     normalizedPasscode === 'charlielimaalpharomeoindiamike' ||
     normalizedPasscode === 'charlielimaalpharomeoindiamikesierra' ||
-    normalizedPasscode === 'clarisma' ||
     normalizedPasscode === 'clarisma@retreat' ||
     normalizedPasscode === 'admin123' ||
     (normalizedAdminPassword && normalizedPasscode === normalizedAdminPassword) ||
@@ -270,7 +284,10 @@ app.post('/api/auth/login', async (req, res) => {
   } else {
     res.status(401).json({ error: 'Invalid credentials' });
   }
-});
+};
+
+app.post('/api/auth/login', loginHandler);
+app.post('/auth/login', loginHandler);
 
 // Get all retreats
 app.get('/api/retreats', async (req, res) => {
@@ -617,25 +634,34 @@ app.put('/api/reservations/:id/status', authenticateToken, async (req, res) => {
 
 // --- Vite Integration ---
 async function startServer() {
-  await initDB();
-
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+  try {
+    await initDB();
+  } catch (err) {
+    console.error('Failed to initialize database:', err);
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    if (process.env.NODE_ENV !== 'production') {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), 'dist');
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
+
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
 startServer();
+
+export default app;
