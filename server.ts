@@ -64,7 +64,6 @@ const pool = new Pool({
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-const ADMIN_PSEUDO = process.env.ADMIN_PSEUDO;
 
 if (!JWT_SECRET || !ADMIN_PASSWORD) {
   throw new Error(
@@ -365,13 +364,8 @@ const loginHandler = async (req: any, res: any) => {
 
   const normalizedPasscode = passcode.toLowerCase().trim();
   const normalizedAdminPassword = ADMIN_PASSWORD!.toLowerCase().trim();
-  const normalizedAdminPseudo = ADMIN_PSEUDO?.toLowerCase()?.trim();
 
-  const isValid =
-    safeCompare(normalizedPasscode, normalizedAdminPassword) ||
-    (!!normalizedAdminPseudo && safeCompare(normalizedPasscode, normalizedAdminPseudo));
-
-  if (isValid) {
+  if (safeCompare(normalizedPasscode, normalizedAdminPassword)) {
     const token = jwt.sign({ role: 'admin' }, JWT_SECRET!, { expiresIn: '24h' });
     res.json({ token });
   } else {
