@@ -76,37 +76,6 @@ const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Intro Music Effect
-  useEffect(() => {
-    // Energetic, short professional intro sound
-    const introAudio = new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_7368686d63.mp3'); 
-    introAudio.volume = 0.4; // Set volume to 40% to be pleasant, not startling
-
-    const playAudio = async () => {
-      try {
-        await introAudio.play();
-      } catch (err) {
-        // Autoplay was prevented by the browser. 
-        // We add a one-time listener to play it on the first interaction.
-        console.log("Autoplay prevented. Waiting for user interaction.");
-        
-        const enableAudio = () => {
-          introAudio.play().catch(e => console.log("Audio play failed again", e));
-          // Remove listeners once executed
-          document.removeEventListener('click', enableAudio);
-          document.removeEventListener('keydown', enableAudio);
-          document.removeEventListener('touchstart', enableAudio);
-        };
-
-        document.addEventListener('click', enableAudio);
-        document.addEventListener('keydown', enableAudio);
-        document.addEventListener('touchstart', enableAudio);
-      }
-    };
-
-    playAudio();
-  }, []);
-
   const handleNavigation = (destination: string) => {
     if (destination === 'founder') {
       navigate('/founder');

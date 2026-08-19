@@ -78,7 +78,7 @@ const ReservationForm = ({ retreat, onClose }: { retreat: Retreat, onClose: () =
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
         <div className="bg-slate-900 border border-white/10 p-8 rounded-3xl max-w-md w-full text-center relative">
-          <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+          <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white" aria-label="Close">
             <X size={24} />
           </button>
           <CheckCircle size={64} className="text-green-500 mx-auto mb-6" />
@@ -100,10 +100,10 @@ const ReservationForm = ({ retreat, onClose }: { retreat: Retreat, onClose: () =
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
       <div className="bg-slate-900 border border-white/10 p-8 rounded-3xl max-w-2xl w-full relative my-8">
-        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white" aria-label="Close">
           <X size={24} />
         </button>
-        
+
         <h3 className="text-3xl font-bold mb-2">Reserve Your Spot</h3>
         <p className="text-slate-400 mb-8">For {retreat.title} ({retreat.date})</p>
 
