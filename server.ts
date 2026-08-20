@@ -376,6 +376,11 @@ const loginHandler = async (req: any, res: any) => {
 app.post('/api/auth/login', loginRateLimiter, loginHandler);
 app.post('/auth/login', loginRateLimiter, loginHandler);
 
+// Verify an existing token (used by the admin UI to confirm a saved token is still valid)
+app.get('/api/auth/verify', authenticateToken, (req, res) => {
+  res.json({ ok: true });
+});
+
 // Get all retreats
 app.get('/api/retreats', async (req, res) => {
   try {

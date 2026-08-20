@@ -172,14 +172,29 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
-    if (token) {
-      setIsAuthenticated(true);
-      fetchRetreats();
-      fetchSettings();
-      fetchReservations();
-      fetchProducts();
-      fetchServices();
-    }
+    if (!token) return;
+
+    const verifyToken = async () => {
+      try {
+        const res = await fetch('/api/auth/verify', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          localStorage.removeItem('adminToken');
+          return;
+        }
+        setIsAuthenticated(true);
+        fetchRetreats();
+        fetchSettings();
+        fetchReservations();
+        fetchProducts();
+        fetchServices();
+      } catch (err) {
+        localStorage.removeItem('adminToken');
+      }
+    };
+
+    verifyToken();
   }, []);
 
   const fetchProducts = async () => {
