@@ -65,7 +65,7 @@ const pool = new Pool({
 // Admin CMS access code. Works out of the box; override with the
 // ADMIN_PASSWORD/JWT_SECRET env vars if you ever want to change it.
 const JWT_SECRET = process.env.JWT_SECRET || 'clarisma-cms-2026-secret';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'claris2026';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '2025202608';
 
 // Initialize database schema
 async function initDB() {
