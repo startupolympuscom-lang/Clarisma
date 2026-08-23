@@ -138,6 +138,7 @@ const Hero: React.FC = () => {
             <button
               onClick={() => setIsVideoOpen(false)}
               className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors"
+              aria-label="Close video"
             >
               <X size={32} />
             </button>

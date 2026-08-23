@@ -62,7 +62,7 @@ interface FormField {
 }
 
 const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
   const [retreats, setRetreats] = useState<Retreat[]>([]);
   const [isEditing, setIsEditing] = useState<number | null>(null);
@@ -91,17 +91,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [isEditingService, setIsEditingService] = useState<number | null>(null);
   const [editServiceForm, setEditServiceForm] = useState<any>({});
   const [isCreatingService, setIsCreatingService] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem('adminToken', 'bypass-cms-auth');
-    setIsAuthenticated(true);
-    fetchRetreats();
-    fetchProducts();
-    fetchSettings();
-    fetchReservations();
-    fetchTestimonials();
-    fetchServices();
-  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,14 +172,29 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
-    if (token) {
-      setIsAuthenticated(true);
-      fetchRetreats();
-      fetchSettings();
-      fetchReservations();
-      fetchProducts();
-      fetchServices();
-    }
+    if (!token) return;
+
+    const verifyToken = async () => {
+      try {
+        const res = await fetch('/api/auth/verify', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          localStorage.removeItem('adminToken');
+          return;
+        }
+        setIsAuthenticated(true);
+        fetchRetreats();
+        fetchSettings();
+        fetchReservations();
+        fetchProducts();
+        fetchServices();
+      } catch (err) {
+        localStorage.removeItem('adminToken');
+      }
+    };
+
+    verifyToken();
   }, []);
 
   const fetchProducts = async () => {
@@ -1011,12 +1015,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                             setIsCreatingTestimonial(false);
                           }}
                           className="p-2 border border-white/10 rounded-lg text-slate-300 hover:text-clarisma-gold hover:border-clarisma-gold/30 transition-colors bg-white/5"
+                          aria-label={`Edit testimonial from ${item.author}`}
                         >
                           <Edit2 size={16} />
                         </button>
                         <button
                           onClick={() => handleDeleteTestimonial(item.id)}
                           className="p-2 border border-white/10 rounded-lg text-slate-300 hover:text-red-500 hover:border-red-500/30 transition-colors bg-white/5"
+                          aria-label={`Delete testimonial from ${item.author}`}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -1256,7 +1262,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute top-2 right-2 flex gap-1">
-                      <button 
+                      <button
                         onClick={() => {
                           setIsEditingProduct(product.id);
                           setEditProductForm(product);
@@ -1264,12 +1270,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                           window.scrollTo(0, 0);
                         }}
                         className="bg-black/60 p-2 rounded-lg text-white hover:text-clarisma-gold transition-colors backdrop-blur-sm"
+                        aria-label={`Edit ${product.title}`}
                       >
                         <Edit2 size={16} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDeleteProduct(product.id)}
                         className="bg-black/60 p-2 rounded-lg text-white hover:text-red-500 transition-colors backdrop-blur-sm"
+                        aria-label={`Delete ${product.title}`}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1521,7 +1529,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                   <div className="flex justify-between items-center pt-4 border-t border-white/10">
                     <span className="text-xs text-slate-400">Order: {service.order_index}</span>
                     <div className="flex gap-2">
-                      <button 
+                      <button
                         onClick={() => {
                           setIsEditingService(service.id);
                           setEditServiceForm({
@@ -1531,12 +1539,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                           setIsCreatingService(false);
                         }}
                         className="p-2 border border-white/10 rounded-lg text-slate-300 hover:text-clarisma-gold hover:border-clarisma-gold/30 transition-colors bg-white/5"
+                        aria-label={`Edit ${service.title}`}
                       >
                         <Edit2 size={16} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDeleteService(service.id)}
                         className="p-2 border border-white/10 rounded-lg text-slate-300 hover:text-red-500 hover:border-red-500/30 transition-colors bg-white/5"
+                        aria-label={`Delete ${service.title}`}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1712,10 +1722,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                 
                 {customFields.map((field) => (
                   <div key={field.id} className="flex flex-wrap gap-4 mb-4 p-4 border border-white/10 rounded-xl bg-black/40 relative">
-                    <button 
-                      onClick={() => removeCustomField(field.id)} 
+                    <button
+                      onClick={() => removeCustomField(field.id)}
                       className="absolute top-3 right-3 text-red-400 hover:text-red-300 transition-colors"
                       title="Remove Field"
+                      aria-label="Remove field"
                     >
                       <X size={18} />
                     </button>
@@ -1807,7 +1818,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute top-4 right-4 flex gap-2">
-                  <button 
+                  <button
                     onClick={() => {
                       setIsEditing(retreat.id);
                       setEditForm(retreat);
@@ -1817,12 +1828,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                       window.scrollTo(0, 0);
                     }}
                     className="bg-black/50 p-2 rounded-lg text-white hover:text-clarisma-gold transition-colors backdrop-blur-sm"
+                    aria-label={`Edit ${retreat.title}`}
                   >
                     <Edit2 size={18} />
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDelete(retreat.id)}
                     className="bg-black/50 p-2 rounded-lg text-white hover:text-red-500 transition-colors backdrop-blur-sm"
+                    aria-label={`Delete ${retreat.title}`}
                   >
                     <Trash2 size={18} />
                   </button>
@@ -1853,9 +1866,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
       {viewingAnswers && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-slate-900 border border-white/10 p-8 rounded-3xl max-w-lg w-full relative">
-            <button 
-              onClick={() => setViewingAnswers(null)} 
+            <button
+              onClick={() => setViewingAnswers(null)}
               className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              aria-label="Close"
             >
               <X size={24} />
             </button>

@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import path from 'path';
 
 dotenv.config();
@@ -62,9 +62,10 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password123';
-const ADMIN_PSEUDO = process.env.ADMIN_PSEUDO || 'Clarisma@retreat';
+// Admin CMS access code. Works out of the box; override with the
+// ADMIN_PASSWORD/JWT_SECRET env vars if you ever want to change it.
+const JWT_SECRET = process.env.JWT_SECRET || 'clarisma-cms-2026-secret';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'claris2026';
 
 // Initialize database schema
 async function initDB() {
@@ -294,49 +295,73 @@ async function initDB() {
   }
 }
 
-// Middleware to verify JWT token - bypassed for no-authentication CMS
+// Middleware to verify JWT token
 const authenticateToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  (req as any).user = { role: 'admin' };
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  if (!token) {
+    return res.status(401).json({ error: 'Missing authentication token' });
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { role?: string };
+    if (payload.role !== 'admin') {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    (req as any).user = payload;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+};
+
+// Very small in-memory rate limiter for the login endpoint (per-IP sliding window)
+const LOGIN_RATE_LIMIT = 10; // attempts
+const LOGIN_RATE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const loginAttempts = new Map<string, number[]>();
+
+const loginRateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const key = req.ip || 'unknown';
+  const now = Date.now();
+  const attempts = (loginAttempts.get(key) || []).filter(t => now - t < LOGIN_RATE_WINDOW_MS);
+
+  if (attempts.length >= LOGIN_RATE_LIMIT) {
+    return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
+  }
+
+  attempts.push(now);
+  loginAttempts.set(key, attempts);
   next();
+};
+
+// Constant-time string comparison to avoid leaking match length via timing
+const safeCompare = (a: string, b: string): boolean => {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
 };
 
 // --- API Routes ---
 
 // Auth login
 const loginHandler = async (req: any, res: any) => {
-  console.log('Login attempt body:', req.body);
-  console.log('Login attempt typeof body:', typeof req.body);
-  
   let passcode = req.body?.passcode;
   if (!passcode && typeof req.body === 'string') {
     try {
       passcode = JSON.parse(req.body).passcode;
-    } catch(e) {}
+    } catch (e) {}
   }
-  
-  const envAdminPassword = process.env.ADMIN_PASSWORD || ADMIN_PASSWORD;
-  const envAdminPseudo = process.env.ADMIN_PSEUDO || ADMIN_PSEUDO;
-  
-  console.log('Passcode received:', passcode);
-  console.log('Expected env admin password:', envAdminPassword);
-  
-  const normalizedPasscode = passcode?.toLowerCase()?.trim();
-  const normalizedAdminPassword = envAdminPassword?.toLowerCase()?.trim();
-  const normalizedAdminPseudo = envAdminPseudo?.toLowerCase()?.trim();
-  
-  const isValid = 
-    normalizedPasscode === 'claris' ||
-    normalizedPasscode === 'clarisma' ||
-    normalizedPasscode === 'charlie lima alpha romeo india mike' ||
-    normalizedPasscode === 'charlie lima alpha romeo india mike sierra' ||
-    normalizedPasscode === 'charlielimaalpharomeoindiamike' ||
-    normalizedPasscode === 'charlielimaalpharomeoindiamikesierra' ||
-    normalizedPasscode === 'clarisma@retreat' ||
-    normalizedPasscode === 'admin123' ||
-    (normalizedAdminPassword && normalizedPasscode === normalizedAdminPassword) ||
-    (normalizedAdminPseudo && normalizedPasscode === normalizedAdminPseudo);
 
-  if (isValid) {
+  if (typeof passcode !== 'string' || !passcode) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+
+  const normalizedPasscode = passcode.toLowerCase().trim();
+  const normalizedAdminPassword = ADMIN_PASSWORD.toLowerCase().trim();
+
+  if (safeCompare(normalizedPasscode, normalizedAdminPassword)) {
     const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ token });
   } else {
@@ -344,8 +369,13 @@ const loginHandler = async (req: any, res: any) => {
   }
 };
 
-app.post('/api/auth/login', loginHandler);
-app.post('/auth/login', loginHandler);
+app.post('/api/auth/login', loginRateLimiter, loginHandler);
+app.post('/auth/login', loginRateLimiter, loginHandler);
+
+// Verify an existing token (used by the admin UI to confirm a saved token is still valid)
+app.get('/api/auth/verify', authenticateToken, (req, res) => {
+  res.json({ ok: true });
+});
 
 // Get all retreats
 app.get('/api/retreats', async (req, res) => {
