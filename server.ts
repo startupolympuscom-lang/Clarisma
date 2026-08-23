@@ -65,7 +65,7 @@ const pool = new Pool({
 // Admin CMS access code. Works out of the box; override with the
 // ADMIN_PASSWORD/JWT_SECRET env vars if you ever want to change it.
 const JWT_SECRET = process.env.JWT_SECRET || 'clarisma-cms-2026-secret';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'claris2026';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '2025202608';
 
 // Initialize database schema
 async function initDB() {
@@ -205,7 +205,7 @@ async function initDB() {
       await pool.query(`
         INSERT INTO testimonials (quote, author, role, company)
         VALUES 
-        ('Working with Dr. Harbon was one of the most meaningful experiences of my studies. Through our projects, and my volunteering to promote equality and discuss women’s rights in Morocco, I learned the power of creating spaces where women can grow, learn, and be heard. Her fiery soul, constant energy, and ability to find meaning in everything around her have shaped the way I approach challenges and purpose.', 'Kenza Sifi', 'Student of International Relations & Affair', 'University Al Akhawayn'),
+        ('Working with Dr. Harbon was one of the most meaningful experiences of my studies. Through our projects, and my volunteering to promote equality and discuss women's rights in Morocco, I learned the power of creating spaces where women can grow, learn, and be heard. Her fiery soul, constant energy, and ability to find meaning in everything around her have shaped the way I approach challenges and purpose.', 'Kenza Sifi', 'Student of International Relations & Affair', 'University Al Akhawayn'),
         ('At Startup Olympus, we look for founders who are solving real problems with passion. Dr. Claris Harbon is the embodiment of that spirit. Through Clarisma, she is redefining what it means to be empowered in both life and business. Her energy is infectious, and her dedication to helping others unlock their potential is genuine. Dr. Harbon is a force of nature.', 'Abderrahim Hamidine', 'Director', 'Startup Olympus')
       `);
     }
