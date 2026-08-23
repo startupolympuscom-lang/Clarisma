@@ -63,7 +63,8 @@ interface FormField {
 
 const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passcode, setPasscode] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [retreats, setRetreats] = useState<Retreat[]>([]);
   const [isEditing, setIsEditing] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<Retreat>>({});
@@ -98,7 +99,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passcode })
+        body: JSON.stringify({ email, password })
       });
       
       if (res.ok) {
@@ -542,13 +543,25 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
           
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-bold mb-2">Access Code</label>
-              <input 
-                type="password" 
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
+              <label className="block text-sm font-bold mb-2">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
-                placeholder="Enter access code"
+                placeholder="you@example.com"
+                autoComplete="username"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold mb-2">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                placeholder="Enter password"
+                autoComplete="current-password"
               />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
