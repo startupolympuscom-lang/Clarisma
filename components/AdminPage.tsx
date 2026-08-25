@@ -1365,3 +1365,562 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                     <label className="block text-sm font-bold mb-2">Description</label>
                     <textarea 
                       rows={3}
+                      value={editServiceForm.description || ''}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, description: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                      placeholder="Describe the service..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Icon Name (Lucide-react)</label>
+                    <input 
+                      type="text" 
+                      value={editServiceForm.icon_name || 'User'}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, icon_name: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                      placeholder="e.g. User, Users, Compass, Shield"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Color Theme</label>
+                    <select 
+                      value={editServiceForm.color_theme || 'gold'}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, color_theme: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                    >
+                      <option value="gold">Gold Theme</option>
+                      <option value="orange">Orange Theme</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Action Button Text</label>
+                    <input 
+                      type="text" 
+                      value={editServiceForm.link_text || 'Book a Session'}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, link_text: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Action Link URL / Section Key</label>
+                    <input 
+                      type="text" 
+                      value={editServiceForm.link_url || '#'}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, link_url: e.target.value})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                      placeholder="e.g. #contact, retreats, or full URL"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Display Order Index</label>
+                    <input 
+                      type="number" 
+                      value={editServiceForm.order_index || 0}
+                      onChange={(e) => setEditServiceForm({...editServiceForm, order_index: parseInt(e.target.value) || 0})}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                    />
+                  </div>
+                </div>
+
+                {/* Sub features sub-form */}
+                <div className="space-y-4 border-t border-white/10 pt-6 mb-8">
+                  <div>
+                    <h3 className="text-lg font-bold text-clarisma-gold uppercase tracking-wider">Service Highlights / Key Features</h3>
+                    <p className="text-xs text-slate-400 mt-1">Specify up to 4 key highlights to display inside this bento block.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[0, 1, 2, 3].map((idx) => {
+                      const item = (editServiceForm.items as any[])?.[idx] || { icon: 'Compass', title: '', desc: '' };
+                      const updateItem = (field: string, val: string) => {
+                        const currentItems = [...((editServiceForm.items as any[]) || [])];
+                        while (currentItems.length <= idx) {
+                          currentItems.push({ icon: 'Compass', title: '', desc: '' });
+                        }
+                        currentItems[idx] = { ...currentItems[idx], [field]: val };
+                        setEditServiceForm({ ...editServiceForm, items: currentItems });
+                      };
+
+                      return (
+                        <div key={idx} className="bg-black/40 p-4 rounded-2xl border border-white/5 space-y-3">
+                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Highlight {idx + 1}</h4>
+                          <div className="grid grid-cols-1 gap-2">
+                            <input
+                              type="text"
+                              value={item.icon || ''}
+                              onChange={(e) => updateItem('icon', e.target.value)}
+                              placeholder="Lucide Icon (e.g., Compass, Heart, Eye)"
+                              className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-clarisma-gold"
+                            />
+                            <input
+                              type="text"
+                              value={item.title || ''}
+                              onChange={(e) => updateItem('title', e.target.value)}
+                              placeholder="Feature Title (e.g., Career Clarity)"
+                              className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-clarisma-gold"
+                            />
+                            <input
+                              type="text"
+                              value={item.desc || ''}
+                              onChange={(e) => updateItem('desc', e.target.value)}
+                              placeholder="Short Subtitle (e.g., Strengths roadmap)"
+                              className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-clarisma-gold"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <button 
+                    onClick={handleSaveService}
+                    className="bg-clarisma-gold text-black px-6 py-3 rounded-xl font-bold hover:bg-white transition-colors"
+                  >
+                    Save Service
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsCreatingService(false);
+                      setIsEditingService(null);
+                      setEditServiceForm({});
+                    }}
+                    className="bg-white/10 text-white px-6 py-3 rounded-xl hover:bg-white/20 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {services.map((service) => (
+                <div key={service.id} className="bg-white/5 p-6 rounded-3xl border border-white/10 flex flex-col justify-between">
+                  <div>
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        {service.badge && (
+                          <span className="text-[10px] font-bold text-clarisma-gold border border-clarisma-gold/20 bg-clarisma-gold/10 px-2.5 py-1 rounded-full uppercase">
+                            {service.badge}
+                          </span>
+                        )}
+                        <h3 className="text-2xl font-black text-white mt-2 uppercase">{service.title}</h3>
+                      </div>
+                      <span className="text-slate-500 font-mono text-sm">Theme: {service.color_theme}</span>
+                    </div>
+                    <p className="text-sm text-slate-300 leading-relaxed mb-4">{service.description}</p>
+                    
+                    {service.items && (
+                      <div className="bg-black/30 p-3 rounded-xl border border-white/5 mb-4">
+                        <p className="text-xs font-bold text-slate-400 mb-2 uppercase">Highlights:</p>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
+                          {((typeof service.items === 'string' ? JSON.parse(service.items || '[]') : service.items) || []).map((feat: any, i: number) => (
+                            <div key={i} className="flex items-center gap-1.5 truncate">
+                              <span className="text-clarisma-gold font-bold">✓</span>
+                              <span className="truncate">{feat.title || 'Untitled Highlight'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center pt-4 border-t border-white/10">
+                    <span className="text-xs text-slate-400">Order: {service.order_index}</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setIsEditingService(service.id);
+                          setEditServiceForm({
+                            ...service,
+                            items: typeof service.items === 'string' ? JSON.parse(service.items) : service.items
+                          });
+                          setIsCreatingService(false);
+                        }}
+                        className="p-2 border border-white/10 rounded-lg text-slate-300 hover:text-clarisma-gold hover:border-clarisma-gold/30 transition-colors bg-white/5"
+                        aria-label={`Edit ${service.title}`}
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteService(service.id)}
+                        className="p-2 border border-white/10 rounded-lg text-slate-300 hover:text-red-500 hover:border-red-500/30 transition-colors bg-white/5"
+                        aria-label={`Delete ${service.title}`}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {services.length === 0 && !isCreatingService && (
+                <div className="col-span-full text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/20">
+                  <p className="text-white/40">No services found. Click "New Service" to add one.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex justify-between items-center mb-8">
+              <h1 className="text-4xl md:text-5xl font-black">Manage Retreats</h1>
+              {!isCreating && !isEditing && (
+                <button 
+                  onClick={() => {
+                    setIsCreating(true);
+                    setEditForm({
+                      title: '',
+                      date: '',
+                      location: '',
+                      city: '',
+                      tags: [],
+                      description: '',
+                      image_url: 'https://picsum.photos/seed/retreat/800/600',
+                      price: '',
+                      signup_url: '',
+                      seats_available: '',
+                      agenda_url: '',
+                      payment_details: '',
+                      custom_form_schema: '[]'
+                    });
+                    setTagsInput('');
+                    setCustomFields([]);
+                  }}
+                  className="flex items-center gap-2 bg-clarisma-gold text-clarisma-red px-4 py-2 rounded-xl font-bold hover:bg-white transition-colors"
+                >
+                  <Plus size={20} />
+                  New Retreat
+                </button>
+              )}
+            </div>
+
+            {(isCreating || isEditing !== null) && (
+          <div className="bg-white/5 p-8 rounded-3xl border border-white/10 mb-12">
+            <h2 className="text-2xl font-bold mb-6">{isCreating ? 'Create Retreat' : 'Edit Retreat'}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label className="block text-sm font-bold mb-2">Title</label>
+                <input 
+                  type="text" 
+                  value={editForm.title || ''}
+                  onChange={(e) => setEditForm({...editForm, title: e.target.value})}
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-2">Date</label>
+                <input 
+                  type="text" 
+                  value={editForm.date || ''}
+                  onChange={(e) => setEditForm({...editForm, date: e.target.value})}
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                  placeholder="e.g., October 15-20, 2026"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-2">Location</label>
+                <input 
+                  type="text" 
+                  value={editForm.location || ''}
+                  onChange={(e) => setEditForm({...editForm, location: e.target.value})}
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-2">City</label>
+                <input 
+                  type="text" 
+                  value={editForm.city || ''}
+                  onChange={(e) => setEditForm({...editForm, city: e.target.value})}
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                  placeholder="e.g., Marrakech"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-2">Tags (comma separated)</label>
+                <input 
+                  type="text" 
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                  placeholder="e.g., Wellness, Leadership, Strategy"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-2">Price</label>
+                <input 
+                  type="text" 
+                  value={editForm.price || ''}
+                  onChange={(e) => setEditForm({...editForm, price: e.target.value})}
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                  placeholder="e.g., $2,500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-2">Sign Up Link (Form URL)</label>
+                <input 
+                  type="text" 
+                  value={editForm.signup_url || ''}
+                  onChange={(e) => setEditForm({...editForm, signup_url: e.target.value})}
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                  placeholder="e.g., https://forms.gle/..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-2">Seats Available</label>
+                <input 
+                  type="text" 
+                  value={editForm.seats_available || ''}
+                  onChange={(e) => setEditForm({...editForm, seats_available: e.target.value})}
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                  placeholder="e.g., 15"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-2">Agenda PDF URL</label>
+                <input 
+                  type="text" 
+                  value={editForm.agenda_url || ''}
+                  onChange={(e) => setEditForm({...editForm, agenda_url: e.target.value})}
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                  placeholder="e.g., https://example.com/agenda.pdf"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold mb-2">Payment Details / Instructions</label>
+                <textarea 
+                  value={editForm.payment_details || ''}
+                  onChange={(e) => setEditForm({...editForm, payment_details: e.target.value})}
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold h-24"
+                  placeholder="e.g., Bank transfer details, payment links, or instructions for reserving a spot."
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold mb-2">Image URL</label>
+                <input 
+                  type="text" 
+                  value={editForm.image_url || ''}
+                  onChange={(e) => setEditForm({...editForm, image_url: e.target.value})}
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold mb-2">Description</label>
+                <textarea 
+                  value={editForm.description || ''}
+                  onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold h-32"
+                />
+              </div>
+              
+              <div className="md:col-span-2 border border-white/10 p-6 rounded-2xl bg-black/20 mt-4">
+                <h3 className="text-lg font-bold mb-2">Custom Registration Form</h3>
+                <p className="text-sm text-slate-400 mb-6">
+                  Add custom fields to collect specific information from attendees during reservation. (Name, Email, Phone, and Message are included by default).
+                </p>
+                
+                {customFields.map((field) => (
+                  <div key={field.id} className="flex flex-wrap gap-4 mb-4 p-4 border border-white/10 rounded-xl bg-black/40 relative">
+                    <button
+                      onClick={() => removeCustomField(field.id)}
+                      className="absolute top-3 right-3 text-red-400 hover:text-red-300 transition-colors"
+                      title="Remove Field"
+                      aria-label="Remove field"
+                    >
+                      <X size={18} />
+                    </button>
+                    <div className="flex-1 min-w-[200px]">
+                      <label className="block text-xs font-bold mb-1">Field Label</label>
+                      <input 
+                        type="text" 
+                        value={field.label} 
+                        onChange={e => updateCustomField(field.id, 'label', e.target.value)} 
+                        className="w-full bg-black/50 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-clarisma-gold text-sm" 
+                        placeholder="e.g., Dietary Restrictions"
+                      />
+                    </div>
+                    <div className="w-40">
+                      <label className="block text-xs font-bold mb-1">Type</label>
+                      <select 
+                        value={field.type} 
+                        onChange={e => updateCustomField(field.id, 'type', e.target.value)} 
+                        className="w-full bg-black/50 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-clarisma-gold text-sm"
+                      >
+                        <option value="text">Short Text</option>
+                        <option value="textarea">Long Text</option>
+                        <option value="select">Dropdown</option>
+                      </select>
+                    </div>
+                    {field.type === 'select' && (
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="block text-xs font-bold mb-1">Options (comma separated)</label>
+                        <input 
+                          type="text" 
+                          value={field.options || ''} 
+                          onChange={e => updateCustomField(field.id, 'options', e.target.value)} 
+                          className="w-full bg-black/50 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-clarisma-gold text-sm" 
+                          placeholder="e.g., Vegan, Vegetarian, None"
+                        />
+                      </div>
+                    )}
+                    <div className="w-24 flex items-end pb-2">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={field.required} 
+                          onChange={e => updateCustomField(field.id, 'required', e.target.checked)} 
+                          className="rounded border-white/20 bg-black/50 text-clarisma-gold focus:ring-clarisma-gold"
+                        />
+                        Required
+                      </label>
+                    </div>
+                  </div>
+                ))}
+                <button 
+                  onClick={addCustomField} 
+                  className="text-sm bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Plus size={16} />
+                  Add Custom Field
+                </button>
+              </div>
+            </div>
+            <div className="flex justify-end gap-4">
+              <button 
+                onClick={() => {
+                  setIsEditing(null);
+                  setIsCreating(false);
+                }}
+                className="px-6 py-3 rounded-xl border border-white/20 hover:bg-white/10 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSave}
+                className="flex items-center gap-2 bg-clarisma-gold text-clarisma-red px-6 py-3 rounded-xl font-bold hover:bg-white transition-colors"
+              >
+                <Save size={20} />
+                Save Retreat
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {retreats.map(retreat => (
+            <div key={retreat.id} className="bg-white/5 rounded-3xl overflow-hidden border border-white/10 flex flex-col">
+              <div className="h-48 overflow-hidden relative">
+                <img 
+                  src={retreat.image_url} 
+                  alt={retreat.title}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute top-4 right-4 flex gap-2">
+                  <button
+                    onClick={() => {
+                      setIsEditing(retreat.id);
+                      setEditForm(retreat);
+                      setTagsInput((retreat.tags || []).join(', '));
+                      setCustomFields(retreat.custom_form_schema ? JSON.parse(retreat.custom_form_schema) : []);
+                      setIsCreating(false);
+                      window.scrollTo(0, 0);
+                    }}
+                    className="bg-black/50 p-2 rounded-lg text-white hover:text-clarisma-gold transition-colors backdrop-blur-sm"
+                    aria-label={`Edit ${retreat.title}`}
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(retreat.id)}
+                    className="bg-black/50 p-2 rounded-lg text-white hover:text-red-500 transition-colors backdrop-blur-sm"
+                    aria-label={`Delete ${retreat.title}`}
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 flex-grow flex flex-col">
+                <h3 className="text-xl font-bold mb-2">{retreat.title}</h3>
+                <p className="text-sm text-clarisma-gold mb-1">{retreat.date}</p>
+                <p className="text-sm text-slate-300 mb-4">{retreat.location}</p>
+                <p className="text-sm text-slate-400 line-clamp-3 mb-4">{retreat.description}</p>
+                <div className="mt-auto pt-4 border-t border-white/10 font-bold">
+                  {retreat.price}
+                </div>
+              </div>
+            </div>
+          ))}
+          {retreats.length === 0 && !isCreating && (
+            <div className="col-span-full text-center py-12 text-slate-400">
+              No retreats found. Click "New Retreat" to add one.
+            </div>
+          )}
+        </div>
+        </>
+        )}
+      </div>
+
+      {/* Answers Modal */}
+      {viewingAnswers && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-white/10 p-8 rounded-3xl max-w-lg w-full relative">
+            <button
+              onClick={() => setViewingAnswers(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              aria-label="Close"
+            >
+              <X size={24} />
+            </button>
+            <h3 className="text-2xl font-bold mb-6">Reservation Details</h3>
+            
+            <div className="space-y-4 mb-8">
+              <div>
+                <p className="text-xs text-slate-400 uppercase font-bold">Name</p>
+                <p className="font-medium">{viewingAnswers.name}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 uppercase font-bold">Email</p>
+                <p className="font-medium">{viewingAnswers.email}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 uppercase font-bold">Phone</p>
+                <p className="font-medium">{viewingAnswers.phone || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 uppercase font-bold">Message</p>
+                <p className="font-medium whitespace-pre-wrap">{viewingAnswers.message || '-'}</p>
+              </div>
+              
+              <div className="pt-4 border-t border-white/10">
+                <h4 className="font-bold text-clarisma-gold mb-4">Custom Form Answers</h4>
+                {viewingAnswers.answers && viewingAnswers.answers !== '{}' ? (
+                  <div className="space-y-4">
+                    {Object.entries(JSON.parse(viewingAnswers.answers)).map(([key, value]) => (
+                      <div key={key}>
+                        <p className="text-xs text-slate-400 uppercase font-bold">{key}</p>
+                        <p className="font-medium whitespace-pre-wrap">{String(value) || '-'}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-slate-400 italic">No custom answers provided.</p>
+                )}
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => setViewingAnswers(null)}
+              className="w-full bg-white/10 text-white font-bold py-3 rounded-xl hover:bg-white/20 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AdminPage;
