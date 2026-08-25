@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import path from 'path';
 
 dotenv.config();
@@ -61,13 +62,10 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Admin CMS session signing secret. Override with JWT_SECRET if you want your own.
+// Admin CMS access code. Works out of the box; override with the
+// ADMIN_PASSWORD/JWT_SECRET env vars if you ever want to change it.
 const JWT_SECRET = process.env.JWT_SECRET || 'clarisma-cms-2026-secret';
-
-// Neon Auth (Stack Auth) credentials for verifying the admin's email/password.
-// Get these from the Neon Console: your project -> Auth tab.
-const STACK_PROJECT_ID = process.env.STACK_PROJECT_ID;
-const STACK_PUBLISHABLE_CLIENT_KEY = process.env.STACK_PUBLISHABLE_CLIENT_KEY;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'claris26';
 
 // Initialize database schema
 async function initDB() {
@@ -337,10 +335,17 @@ const loginRateLimiter = (req: express.Request, res: express.Response, next: exp
   next();
 };
 
+// Constant-time string comparison to avoid leaking match length via timing
+const safeCompare = (a: string, b: string): boolean => {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+};
+
 // --- API Routes ---
 
-// Auth login - verifies email/password against Neon Auth (Stack Auth), then
-// issues our own short-lived session token for the rest of the admin API.
+// Auth login
 const loginHandler = async (req: any, res: any) => {
   let body = req.body;
   if (typeof body === 'string') {
@@ -351,39 +356,20 @@ const loginHandler = async (req: any, res: any) => {
     }
   }
 
-  const email = body?.email;
-  const password = body?.password;
+  const passcode = body?.passcode;
 
-  if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
+  if (typeof passcode !== 'string' || !passcode) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  if (!STACK_PROJECT_ID || !STACK_PUBLISHABLE_CLIENT_KEY) {
-    console.error('Neon Auth is not configured: set STACK_PROJECT_ID and STACK_PUBLISHABLE_CLIENT_KEY');
-    return res.status(500).json({ error: 'Authentication is not configured' });
-  }
+  const normalizedPasscode = passcode.toLowerCase().trim();
+  const normalizedAdminPassword = ADMIN_PASSWORD.toLowerCase().trim();
 
-  try {
-    const stackRes = await fetch('https://api.stack-auth.com/api/v1/auth/password/sign-in', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Stack-Access-Type': 'client',
-        'X-Stack-Project-Id': STACK_PROJECT_ID,
-        'X-Stack-Publishable-Client-Key': STACK_PUBLISHABLE_CLIENT_KEY,
-      },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!stackRes.ok) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
+  if (safeCompare(normalizedPasscode, normalizedAdminPassword)) {
     const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ token });
-  } catch (err) {
-    console.error('Neon Auth sign-in request failed:', err);
-    res.status(500).json({ error: 'Authentication service unavailable' });
+  } else {
+    res.status(401).json({ error: 'Invalid credentials' });
   }
 };
 
