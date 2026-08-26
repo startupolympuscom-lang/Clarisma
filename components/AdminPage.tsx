@@ -107,10 +107,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         setIsAuthenticated(true);
         fetchRetreats();
       } else {
-        setError('Invalid credentials');
+        let detail = '';
+        try {
+          const body = await res.text();
+          detail = body ? `: ${body.slice(0, 200)}` : '';
+        } catch (parseErr) {
+          // ignore, use empty detail
+        }
+        setError(`Login failed (HTTP ${res.status})${detail}`);
       }
     } catch (err) {
-      setError('Login failed');
+      setError(`Network error: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
