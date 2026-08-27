@@ -7,13 +7,16 @@ import About from './components/About';
 import TargetAudience from './components/TargetAudience';
 import SpecializedPrograms from './components/SpecializedPrograms';
 import Process from './components/Process';
+import IkigaiChart from './components/IkigaiChart';
 import Testimonials from './components/Testimonials';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
 import FounderPage from './components/FounderPage';
 import RetreatsPage from './components/RetreatsPage';
 import ShopPage from './components/ShopPage';
-import AdminPage from './components/AdminPage';
+import Portal from './components/Portal';
+import Login from './components/Login';
+import Signup from './components/Signup';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -66,6 +69,7 @@ const HomePage: React.FC<{ onNavigate: (dest: string) => void }> = ({ onNavigate
       {settings.show_target_audience !== 'false' && <TargetAudience />}
       {settings.show_specialized_programs !== 'false' && <SpecializedPrograms />}
       {settings.show_process !== 'false' && <Process />}
+      {settings.show_ikigai !== 'false' && <IkigaiChart />}
       {settings.show_testimonials !== 'false' && <Testimonials />}
       {settings.show_contact !== 'false' && <Contact />}
     </main>
@@ -85,6 +89,8 @@ const App: React.FC = () => {
       navigate('/shop');
     } else if (destination === 'admin') {
       navigate('/admin');
+    } else if (destination === 'signup') {
+      navigate('/signup');
     } else if (destination === 'home') {
       navigate('/');
     } else if (destination.startsWith('#')) {
@@ -124,7 +130,16 @@ const App: React.FC = () => {
               />
             } />
             <Route path="/shop" element={<ShopPage onBack={() => navigate('/')} />} />
-            <Route path="/admin" element={<AdminPage onBack={() => navigate('/')} />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/portal" element={
+              <Portal
+                onBack={() => navigate('/')}
+                onUnauthorized={() => navigate('/login')}
+              />
+            } />
+            {/* Old admin link - send visitors to the new login */}
+            <Route path="/admin" element={<Login />} />
             {/* Fallback to home */}
             <Route path="*" element={<HomePage onNavigate={handleNavigation} />} />
           </Routes>

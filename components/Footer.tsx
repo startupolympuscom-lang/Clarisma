@@ -28,7 +28,8 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               <li><a href="#services" className="hover:text-clarisma-gold transition-colors">Services</a></li>
               <li><a href="#about" className="hover:text-clarisma-gold transition-colors">About</a></li>
               <li><a href="#contact" className="hover:text-clarisma-gold transition-colors">Contact</a></li>
-              <li><button onClick={() => onNavigate && onNavigate('admin')} className="hover:text-clarisma-gold transition-colors">Admin Login</button></li>
+              <li><button onClick={() => onNavigate && onNavigate('admin')} className="hover:text-clarisma-gold transition-colors">Login</button></li>
+              <li><button onClick={() => onNavigate && onNavigate('signup')} className="hover:text-clarisma-gold transition-colors">Sign Up</button></li>
             </ul>
           </div>
           <div>

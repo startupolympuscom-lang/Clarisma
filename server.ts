@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import path from 'path';
 
 dotenv.config();
@@ -62,14 +62,38 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Admin CMS access code. Works out of the box; override with the
-// ADMIN_PASSWORD/JWT_SECRET env vars if you ever want to change it.
+// Session signing secret. Override with JWT_SECRET if you want your own.
 const JWT_SECRET = process.env.JWT_SECRET || 'clarisma-cms-2026-secret';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'claris26';
+
+// Claris's seeded admin account. The password is never stored in source -
+// only its bcrypt hash, which cannot be reversed back into the password.
+const ADMIN_EMAIL = 'claris@clarisma.com';
+const ADMIN_PASSWORD_HASH = '$2b$10$a/Rbm0LakT7k42NiBPrWvO/PkuWAcE8fZQ/08oRMXU9pHCHIggk9.';
+const ADMIN_NAME = 'Dr. Claris Harbon';
 
 // Initialize database schema
 async function initDB() {
   try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'client',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Seed Claris's admin account. ON CONFLICT DO NOTHING so a redeploy
+    // never resets a password she's since changed.
+    await pool.query(
+      `INSERT INTO users (email, password_hash, name, role)
+       VALUES ($1, $2, $3, 'admin')
+       ON CONFLICT (email) DO NOTHING`,
+      [ADMIN_EMAIL, ADMIN_PASSWORD_HASH, ADMIN_NAME]
+    );
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS retreats (
         id SERIAL PRIMARY KEY,
@@ -295,7 +319,7 @@ async function initDB() {
   }
 }
 
-// Middleware to verify JWT token
+// Middleware to verify JWT token - attaches { userId, role } to req.user
 const authenticateToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -305,16 +329,24 @@ const authenticateToken = (req: express.Request, res: express.Response, next: ex
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as { role?: string };
-    if (payload.role !== 'admin') {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
+    const payload = jwt.verify(token, JWT_SECRET) as { userId: number; role: string };
     (req as any).user = payload;
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
+
+// Middleware to require the admin role (must run after authenticateToken)
+const requireAdmin = [
+  authenticateToken,
+  (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if ((req as any).user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    next();
+  }
+];
 
 // Very small in-memory rate limiter for the login endpoint (per-IP sliding window)
 const LOGIN_RATE_LIMIT = 10; // attempts
@@ -335,18 +367,10 @@ const loginRateLimiter = (req: express.Request, res: express.Response, next: exp
   next();
 };
 
-// Constant-time string comparison to avoid leaking match length via timing
-const safeCompare = (a: string, b: string): boolean => {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return crypto.timingSafeEqual(bufA, bufB);
-};
-
 // --- API Routes ---
 
-// Auth login
-const loginHandler = async (req: any, res: any) => {
+// Client signup
+app.post('/api/auth/signup', loginRateLimiter, async (req: any, res: any) => {
   let body = req.body;
   if (typeof body === 'string') {
     try {
@@ -356,29 +380,84 @@ const loginHandler = async (req: any, res: any) => {
     }
   }
 
-  const passcode = body?.passcode;
+  const name = typeof body?.name === 'string' ? body.name.trim() : '';
+  const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const password = typeof body?.password === 'string' ? body.password : '';
 
-  if (typeof passcode !== 'string' || !passcode) {
+  if (!name || !email || !password || password.length < 8) {
+    return res.status(400).json({ error: 'Name, email, and a password of at least 8 characters are required' });
+  }
+
+  try {
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'An account with this email already exists' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      `INSERT INTO users (email, password_hash, name, role)
+       VALUES ($1, $2, $3, 'client')
+       RETURNING id, email, name, role`,
+      [email, passwordHash, name]
+    );
+
+    const user = result.rows[0];
+    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+    res.status(201).json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+  } catch (err) {
+    console.error('Signup error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Login (admin or client) - email + password
+app.post('/api/auth/login', loginRateLimiter, async (req: any, res: any) => {
+  let body = req.body;
+  if (typeof body === 'string') {
+    try {
+      body = JSON.parse(body);
+    } catch (e) {
+      body = {};
+    }
+  }
+
+  const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const password = typeof body?.password === 'string' ? body.password : '';
+
+  if (!email || !password) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  const normalizedPasscode = passcode.toLowerCase().trim();
-  const normalizedAdminPassword = ADMIN_PASSWORD.toLowerCase().trim();
+  try {
+    const result = await pool.query('SELECT id, email, password_hash, name, role FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
 
-  if (safeCompare(normalizedPasscode, normalizedAdminPassword)) {
-    const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ token });
-  } else {
-    res.status(401).json({ error: 'Invalid credentials' });
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-};
+});
 
-app.post('/api/auth/login', loginRateLimiter, loginHandler);
-app.post('/auth/login', loginRateLimiter, loginHandler);
-
-// Verify an existing token (used by the admin UI to confirm a saved token is still valid)
-app.get('/api/auth/verify', authenticateToken, (req, res) => {
-  res.json({ ok: true });
+// Verify an existing token (used by the frontend to confirm a saved token is still valid)
+app.get('/api/auth/verify', authenticateToken, async (req: any, res: any) => {
+  try {
+    const result = await pool.query('SELECT id, email, name, role FROM users WHERE id = $1', [req.user.userId]);
+    const user = result.rows[0];
+    if (!user) {
+      return res.status(401).json({ error: 'User no longer exists' });
+    }
+    res.json({ ok: true, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+  } catch (err) {
+    console.error('Verify error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Get all retreats
@@ -393,7 +472,7 @@ app.get('/api/retreats', async (req, res) => {
 });
 
 // Create a retreat
-app.post('/api/retreats', authenticateToken, async (req, res) => {
+app.post('/api/retreats', requireAdmin, async (req, res) => {
   const { title, date, location, city, tags, description, image_url, price, signup_url, seats_available, agenda_url, payment_details, custom_form_schema } = req.body;
   try {
     const result = await pool.query(
@@ -408,7 +487,7 @@ app.post('/api/retreats', authenticateToken, async (req, res) => {
 });
 
 // Update a retreat
-app.put('/api/retreats/:id', authenticateToken, async (req, res) => {
+app.put('/api/retreats/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { title, date, location, city, tags, description, image_url, price, signup_url, seats_available, agenda_url, payment_details, custom_form_schema } = req.body;
   try {
@@ -427,7 +506,7 @@ app.put('/api/retreats/:id', authenticateToken, async (req, res) => {
 });
 
 // Delete a retreat
-app.delete('/api/retreats/:id', authenticateToken, async (req, res) => {
+app.delete('/api/retreats/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query('DELETE FROM retreats WHERE id = $1 RETURNING *', [id]);
@@ -453,7 +532,7 @@ app.get('/api/services', async (req, res) => {
 });
 
 // Create a service
-app.post('/api/services', authenticateToken, async (req, res) => {
+app.post('/api/services', requireAdmin, async (req, res) => {
   const { title, badge, description, icon_name, items, link_text, link_url, color_theme, order_index } = req.body;
   try {
     const result = await pool.query(
@@ -478,7 +557,7 @@ app.post('/api/services', authenticateToken, async (req, res) => {
 });
 
 // Update a service
-app.put('/api/services/:id', authenticateToken, async (req, res) => {
+app.put('/api/services/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { title, badge, description, icon_name, items, link_text, link_url, color_theme, order_index } = req.body;
   try {
@@ -508,7 +587,7 @@ app.put('/api/services/:id', authenticateToken, async (req, res) => {
 });
 
 // Delete a service
-app.delete('/api/services/:id', authenticateToken, async (req, res) => {
+app.delete('/api/services/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query('DELETE FROM services WHERE id = $1 RETURNING *', [id]);
@@ -534,7 +613,7 @@ app.get('/api/products', async (req, res) => {
 });
 
 // Create a product
-app.post('/api/products', authenticateToken, async (req, res) => {
+app.post('/api/products', requireAdmin, async (req, res) => {
   const { title, description, price, image_url, download_url, category } = req.body;
   try {
     const result = await pool.query(
@@ -549,7 +628,7 @@ app.post('/api/products', authenticateToken, async (req, res) => {
 });
 
 // Update a product
-app.put('/api/products/:id', authenticateToken, async (req, res) => {
+app.put('/api/products/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { title, description, price, image_url, download_url, category } = req.body;
   try {
@@ -568,7 +647,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
 });
 
 // Delete a product
-app.delete('/api/products/:id', authenticateToken, async (req, res) => {
+app.delete('/api/products/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query('DELETE FROM products WHERE id = $1 RETURNING *', [id]);
@@ -594,7 +673,7 @@ app.get('/api/testimonials', async (req, res) => {
 });
 
 // Create a testimonial (admin only)
-app.post('/api/testimonials', authenticateToken, async (req, res) => {
+app.post('/api/testimonials', requireAdmin, async (req, res) => {
   const { quote, author, role, company } = req.body;
   try {
     const result = await pool.query(
@@ -609,7 +688,7 @@ app.post('/api/testimonials', authenticateToken, async (req, res) => {
 });
 
 // Update a testimonial (admin only)
-app.put('/api/testimonials/:id', authenticateToken, async (req, res) => {
+app.put('/api/testimonials/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { quote, author, role, company } = req.body;
   try {
@@ -628,7 +707,7 @@ app.put('/api/testimonials/:id', authenticateToken, async (req, res) => {
 });
 
 // Delete a testimonial (admin only)
-app.delete('/api/testimonials/:id', authenticateToken, async (req, res) => {
+app.delete('/api/testimonials/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query('DELETE FROM testimonials WHERE id = $1 RETURNING *', [id]);
@@ -658,7 +737,7 @@ app.get('/api/settings', async (req, res) => {
 });
 
 // Update settings
-app.put('/api/settings', authenticateToken, async (req, res) => {
+app.put('/api/settings', requireAdmin, async (req, res) => {
   const { settings } = req.body;
   try {
     if (settings && typeof settings === 'object') {
@@ -693,7 +772,7 @@ app.post('/api/reservations', async (req, res) => {
 });
 
 // Get all reservations (admin only)
-app.get('/api/reservations', authenticateToken, async (req, res) => {
+app.get('/api/reservations', requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT r.*, ret.title as retreat_title 
@@ -709,7 +788,7 @@ app.get('/api/reservations', authenticateToken, async (req, res) => {
 });
 
 // Update reservation status (admin only)
-app.put('/api/reservations/:id/status', authenticateToken, async (req, res) => {
+app.put('/api/reservations/:id/status', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   try {
