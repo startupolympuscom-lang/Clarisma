@@ -4,12 +4,10 @@ import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import path from 'path';
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
 
 app.use(cors());
 // Materials/submissions are uploaded as base64 inside JSON. Vercel serverless
@@ -1335,36 +1333,12 @@ app.post('/api/tasks/:id/comments', authenticateToken, async (req: any, res) => 
   }
 });
 
-// --- Vite Integration ---
-async function startServer() {
-  try {
-    await initDB();
-  } catch (err) {
-    console.error('Failed to initialize database:', err);
-  }
+// Create tables / seed the admin account on cold start. Fire-and-forget:
+// routes don't depend on this having finished (each one queries the pool
+// directly), and a failure here must never take down the whole function.
+initDB().catch((err) => {
+  console.error('Failed to initialize database:', err);
+});
 
-  if (!process.env.VERCEL) {
-    if (process.env.NODE_ENV !== 'production') {
-      const { createServer: createViteServer } = await import('vite');
-      const vite = await createViteServer({
-        server: { middlewareMode: true },
-        appType: 'spa',
-      });
-      app.use(vite.middlewares);
-    } else {
-      const distPath = path.join(process.cwd(), 'dist');
-      app.use(express.static(distPath));
-      app.get('*', (req, res) => {
-        res.sendFile(path.join(distPath, 'index.html'));
-      });
-    }
-
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  }
-}
-
-startServer();
-
+export { app, initDB };
 export default app;
