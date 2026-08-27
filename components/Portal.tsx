@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import AdminLMS from './AdminLMS';
 import ClientLMS from './ClientLMS';
+import AdminKanban from './AdminKanban';
+import ClientKanban from './ClientKanban';
 
 interface PortalProps {
   onBack: () => void;
@@ -66,12 +68,14 @@ interface FormField {
 
 const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
   const [role, setRole] = useState<'admin' | 'client' | null>(null);
+  const [myUserId, setMyUserId] = useState<number | null>(null);
+  const [myName, setMyName] = useState('');
   const [retreats, setRetreats] = useState<Retreat[]>([]);
   const [isEditing, setIsEditing] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<Retreat>>({});
   const [tagsInput, setTagsInput] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [activeTab, setActiveTab] = useState<'retreats' | 'settings' | 'reservations' | 'shop' | 'landing' | 'services' | 'lms'>('retreats');
+  const [activeTab, setActiveTab] = useState<'retreats' | 'settings' | 'reservations' | 'shop' | 'landing' | 'services' | 'lms' | 'kanban'>('retreats');
   const [settings, setSettings] = useState<any>({});
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -165,6 +169,8 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
         const data = await res.json();
         const userRole: 'admin' | 'client' = data.user?.role === 'admin' ? 'admin' : 'client';
         setRole(userRole);
+        setMyUserId(data.user?.id ?? null);
+        setMyName(data.user?.name ?? '');
 
         if (userRole === 'admin') {
           fetchRetreats();
@@ -539,6 +545,9 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
           </button>
         </div>
         <ClientLMS />
+        <div className="max-w-4xl mx-auto px-6 pb-20">
+          <ClientKanban />
+        </div>
       </div>
     );
   }
@@ -634,10 +643,22 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
           >
             Learning Materials
           </button>
+          <button
+            onClick={() => setActiveTab('kanban')}
+            className={`px-6 py-2 rounded-full font-bold transition-colors ${
+              activeTab === 'kanban'
+                ? 'bg-clarisma-gold text-black'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            Kanban
+          </button>
         </div>
 
         {activeTab === 'lms' ? (
           <AdminLMS />
+        ) : activeTab === 'kanban' ? (
+          <AdminKanban myUserId={myUserId} myName={myName} />
         ) : activeTab === 'landing' ? (
           <div className="space-y-12">
             {/* Section 1: Texts & Headings */}

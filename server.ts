@@ -141,6 +141,30 @@ async function initDB() {
       );
     `);
 
+    // --- Kanban: tasks Claris assigns to herself or a client, with comments ---
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT DEFAULT '',
+        status VARCHAR(20) NOT NULL DEFAULT 'todo',
+        assignee_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        due_date VARCHAR(50) DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS task_comments (
+        id SERIAL PRIMARY KEY,
+        task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        author_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS retreats (
         id SERIAL PRIMARY KEY,
@@ -1134,6 +1158,169 @@ app.get('/api/submissions/:id/file', authenticateToken, async (req: any, res) =>
     res.set('Content-Type', file.file_mime);
     res.set('Content-Disposition', `attachment; filename="${file.file_name.replace(/"/g, '')}"`);
     res.send(file.file_data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// --- Kanban: tasks + comments ---
+
+// List tasks - admin sees all with assignee/creator names; client sees only their own
+app.get('/api/tasks', authenticateToken, async (req: any, res) => {
+  try {
+    if (req.user.role === 'admin') {
+      const result = await pool.query(`
+        SELECT t.id, t.title, t.description, t.status, t.due_date, t.created_at,
+               t.assignee_id, a.name AS assignee_name,
+               t.created_by, c.name AS created_by_name
+        FROM tasks t
+        LEFT JOIN users a ON a.id = t.assignee_id
+        LEFT JOIN users c ON c.id = t.created_by
+        ORDER BY t.created_at DESC
+      `);
+      res.json(result.rows);
+    } else {
+      const result = await pool.query(`
+        SELECT t.id, t.title, t.description, t.status, t.due_date, t.created_at,
+               t.assignee_id, t.created_by, c.name AS created_by_name
+        FROM tasks t
+        LEFT JOIN users c ON c.id = t.created_by
+        WHERE t.assignee_id = $1
+        ORDER BY t.created_at DESC
+      `, [req.user.userId]);
+      res.json(result.rows);
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create a task (admin only) - can assign to herself or any client
+app.post('/api/tasks', requireAdmin, async (req: any, res) => {
+  const { title, description, assignee_id, due_date } = req.body;
+  if (!title || !assignee_id) {
+    return res.status(400).json({ error: 'title and assignee_id are required' });
+  }
+  try {
+    const result = await pool.query(
+      `INSERT INTO tasks (title, description, assignee_id, created_by, due_date)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [title, description || '', assignee_id, req.user.userId, due_date || '']
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update a task - admin can edit anything; the assignee can only change status
+app.put('/api/tasks/:id', authenticateToken, async (req: any, res) => {
+  const { id } = req.params;
+  try {
+    const existing = await pool.query('SELECT * FROM tasks WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    const task = existing.rows[0];
+
+    if (req.user.role === 'admin') {
+      const { title, description, assignee_id, due_date, status } = req.body;
+      const result = await pool.query(
+        `UPDATE tasks SET title = $1, description = $2, assignee_id = $3, due_date = $4, status = $5
+         WHERE id = $6 RETURNING *`,
+        [
+          title ?? task.title,
+          description ?? task.description,
+          assignee_id ?? task.assignee_id,
+          due_date ?? task.due_date,
+          status ?? task.status,
+          id
+        ]
+      );
+      return res.json(result.rows[0]);
+    }
+
+    // Non-admin: only the assignee can move their own task's status
+    if (task.assignee_id !== req.user.userId) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    const { status } = req.body;
+    if (!['todo', 'in_progress', 'done'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    const result = await pool.query('UPDATE tasks SET status = $1 WHERE id = $2 RETURNING *', [status, id]);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete a task (admin only)
+app.delete('/api/tasks/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM tasks WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    res.json({ message: 'Task deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Can this user see/comment on this task?
+const canAccessTask = async (taskId: string, userId: number, role: string): Promise<boolean> => {
+  if (role === 'admin') return true;
+  const result = await pool.query('SELECT assignee_id FROM tasks WHERE id = $1', [taskId]);
+  return result.rows.length > 0 && result.rows[0].assignee_id === userId;
+};
+
+// List comments on a task (admin or the assignee only)
+app.get('/api/tasks/:id/comments', authenticateToken, async (req: any, res) => {
+  const { id } = req.params;
+  try {
+    if (!(await canAccessTask(id, req.user.userId, req.user.role))) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    const result = await pool.query(`
+      SELECT c.id, c.body, c.created_at, c.author_id, u.name AS author_name, u.role AS author_role
+      FROM task_comments c
+      JOIN users u ON u.id = c.author_id
+      WHERE c.task_id = $1
+      ORDER BY c.created_at ASC
+    `, [id]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add a comment to a task (admin or the assignee only)
+app.post('/api/tasks/:id/comments', authenticateToken, async (req: any, res) => {
+  const { id } = req.params;
+  const { body } = req.body;
+  if (!body || typeof body !== 'string' || !body.trim()) {
+    return res.status(400).json({ error: 'Comment body is required' });
+  }
+  try {
+    if (!(await canAccessTask(id, req.user.userId, req.user.role))) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    const result = await pool.query(
+      `INSERT INTO task_comments (task_id, author_id, body) VALUES ($1, $2, $3)
+       RETURNING id, task_id, body, created_at, author_id`,
+      [id, req.user.userId, body.trim()]
+    );
+    const comment = result.rows[0];
+    const userResult = await pool.query('SELECT name, role FROM users WHERE id = $1', [req.user.userId]);
+    res.status(201).json({ ...comment, author_name: userResult.rows[0]?.name, author_role: userResult.rows[0]?.role });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
