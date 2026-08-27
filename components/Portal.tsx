@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import AdminLMS from './AdminLMS';
+import ClientLMS from './ClientLMS';
 
 interface PortalProps {
   onBack: () => void;
@@ -69,7 +71,7 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
   const [editForm, setEditForm] = useState<Partial<Retreat>>({});
   const [tagsInput, setTagsInput] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [activeTab, setActiveTab] = useState<'retreats' | 'settings' | 'reservations' | 'shop' | 'landing' | 'services'>('retreats');
+  const [activeTab, setActiveTab] = useState<'retreats' | 'settings' | 'reservations' | 'shop' | 'landing' | 'services' | 'lms'>('retreats');
   const [settings, setSettings] = useState<any>({});
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -520,27 +522,23 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
 
   if (role !== 'admin') {
     return (
-      <div className="min-h-screen pt-32 px-6 flex items-center justify-center">
-        <div className="bg-white/5 p-8 rounded-3xl border border-white/10 max-w-md w-full text-center">
+      <div className="relative">
+        <div className="absolute top-32 left-6 right-6 max-w-4xl mx-auto flex justify-between items-center z-10">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-clarisma-gold hover:text-white transition-colors mb-8"
+            className="flex items-center gap-2 text-clarisma-gold hover:text-white transition-colors"
           >
             <ArrowLeft size={20} />
             <span>Back to Home</span>
           </button>
-
-          <h2 className="text-3xl font-black mb-4">Welcome</h2>
-          <p className="text-slate-400 mb-8">
-            Your learning materials and tasks will appear here soon.
-          </p>
           <button
             onClick={handleLogout}
-            className="text-sm border border-white/20 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
+            className="text-sm border border-white/20 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors bg-clarisma-red"
           >
             Logout
           </button>
         </div>
+        <ClientLMS />
       </div>
     );
   }
@@ -619,16 +617,28 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
           <button
             onClick={() => setActiveTab('services')}
             className={`px-6 py-2 rounded-full font-bold transition-colors ${
-              activeTab === 'services' 
-                ? 'bg-clarisma-gold text-black' 
+              activeTab === 'services'
+                ? 'bg-clarisma-gold text-black'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
             Manage Services
           </button>
+          <button
+            onClick={() => setActiveTab('lms')}
+            className={`px-6 py-2 rounded-full font-bold transition-colors ${
+              activeTab === 'lms'
+                ? 'bg-clarisma-gold text-black'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            Learning Materials
+          </button>
         </div>
 
-        {activeTab === 'landing' ? (
+        {activeTab === 'lms' ? (
+          <AdminLMS />
+        ) : activeTab === 'landing' ? (
           <div className="space-y-12">
             {/* Section 1: Texts & Headings */}
             <div className="bg-white/5 p-8 rounded-3xl border border-white/10">
