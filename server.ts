@@ -12,7 +12,11 @@ const app = express();
 const PORT = 3000;
 
 app.use(cors());
-app.use(express.json());
+// Materials/submissions are uploaded as base64 inside JSON. Vercel serverless
+// functions cap the total request body at ~4.5MB, so files are limited well
+// below that (see MAX_FILE_SIZE_BYTES) and this just needs enough headroom
+// for the base64 + JSON overhead on top of that cap.
+app.use(express.json({ limit: '8mb' }));
 
 // Fallback body parser middleware to ensure stringified JSON bodies are parsed successfully
 app.use((req, res, next) => {
@@ -71,6 +75,10 @@ const ADMIN_EMAIL = 'claris@clarisma.com';
 const ADMIN_PASSWORD_HASH = '$2b$10$a/Rbm0LakT7k42NiBPrWvO/PkuWAcE8fZQ/08oRMXU9pHCHIggk9.';
 const ADMIN_NAME = 'Dr. Claris Harbon';
 
+// Uploaded files (materials, submissions) are stored as bytea in Postgres.
+// Kept well under Vercel's ~4.5MB serverless request body cap once base64-encoded.
+const MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024; // 3MB
+
 // Initialize database schema
 async function initDB() {
   try {
@@ -93,6 +101,45 @@ async function initDB() {
        ON CONFLICT (email) DO NOTHING`,
       [ADMIN_EMAIL, ADMIN_PASSWORD_HASH, ADMIN_NAME]
     );
+
+    // --- LMS: learning materials, per-client assignments, and submissions ---
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS materials (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT DEFAULT '',
+        file_name VARCHAR(255) NOT NULL,
+        file_mime VARCHAR(100) NOT NULL,
+        file_data BYTEA NOT NULL,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS material_assignments (
+        id SERIAL PRIMARY KEY,
+        material_id INTEGER NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+        client_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (material_id, client_id)
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS submissions (
+        id SERIAL PRIMARY KEY,
+        client_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        material_id INTEGER REFERENCES materials(id) ON DELETE SET NULL,
+        file_name VARCHAR(255) NOT NULL,
+        file_mime VARCHAR(100) NOT NULL,
+        file_data BYTEA NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        feedback TEXT DEFAULT '',
+        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        reviewed_at TIMESTAMP
+      );
+    `);
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS retreats (
@@ -800,6 +847,293 @@ app.put('/api/reservations/:id/status', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Reservation not found' });
     }
     res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// --- LMS: materials, assignments, submissions ---
+
+// List client accounts (admin only, for assigning materials)
+app.get('/api/clients', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, email, name, created_at FROM users WHERE role = 'client' ORDER BY name ASC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// List materials - admin sees all with their assigned client ids; client sees only what's assigned to them
+app.get('/api/materials', authenticateToken, async (req: any, res) => {
+  try {
+    if (req.user.role === 'admin') {
+      const result = await pool.query(`
+        SELECT m.id, m.title, m.description, m.file_name, m.file_mime, m.created_at,
+               COALESCE(array_agg(ma.client_id) FILTER (WHERE ma.client_id IS NOT NULL), '{}') AS assigned_client_ids
+        FROM materials m
+        LEFT JOIN material_assignments ma ON ma.material_id = m.id
+        GROUP BY m.id
+        ORDER BY m.created_at DESC
+      `);
+      res.json(result.rows);
+    } else {
+      const result = await pool.query(`
+        SELECT m.id, m.title, m.description, m.file_name, m.file_mime, m.created_at
+        FROM materials m
+        JOIN material_assignments ma ON ma.material_id = m.id
+        WHERE ma.client_id = $1
+        ORDER BY m.created_at DESC
+      `, [req.user.userId]);
+      res.json(result.rows);
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create a material (admin only). file_data is base64-encoded in the JSON body.
+app.post('/api/materials', requireAdmin, async (req: any, res) => {
+  const { title, description, file_name, file_mime, file_data, client_ids } = req.body;
+
+  if (!title || !file_name || !file_mime || typeof file_data !== 'string') {
+    return res.status(400).json({ error: 'title, file_name, file_mime, and file_data are required' });
+  }
+
+  let buffer: Buffer;
+  try {
+    buffer = Buffer.from(file_data, 'base64');
+  } catch (err) {
+    return res.status(400).json({ error: 'file_data must be valid base64' });
+  }
+
+  if (buffer.length > MAX_FILE_SIZE_BYTES) {
+    return res.status(413).json({ error: `File too large. Max size is ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB` });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO materials (title, description, file_name, file_mime, file_data, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, title, description, file_name, file_mime, created_at`,
+      [title, description || '', file_name, file_mime, buffer, req.user.userId]
+    );
+    const material = result.rows[0];
+
+    if (Array.isArray(client_ids) && client_ids.length > 0) {
+      for (const clientId of client_ids) {
+        await pool.query(
+          `INSERT INTO material_assignments (material_id, client_id) VALUES ($1, $2)
+           ON CONFLICT (material_id, client_id) DO NOTHING`,
+          [material.id, clientId]
+        );
+      }
+    }
+
+    res.status(201).json(material);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update a material's title/description (admin only)
+app.put('/api/materials/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { title, description } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE materials SET title = $1, description = $2 WHERE id = $3
+       RETURNING id, title, description, file_name, file_mime, created_at`,
+      [title, description || '', id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Material not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Replace which clients a material is assigned to (admin only)
+app.put('/api/materials/:id/assign', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { client_ids } = req.body;
+
+  if (!Array.isArray(client_ids)) {
+    return res.status(400).json({ error: 'client_ids must be an array' });
+  }
+
+  try {
+    await pool.query('DELETE FROM material_assignments WHERE material_id = $1', [id]);
+    for (const clientId of client_ids) {
+      await pool.query(
+        `INSERT INTO material_assignments (material_id, client_id) VALUES ($1, $2)
+         ON CONFLICT (material_id, client_id) DO NOTHING`,
+        [id, clientId]
+      );
+    }
+    res.json({ message: 'Assignments updated' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete a material (admin only)
+app.delete('/api/materials/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM materials WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Material not found' });
+    }
+    res.json({ message: 'Material deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Download a material's file - admin always allowed, client only if assigned to them
+app.get('/api/materials/:id/file', authenticateToken, async (req: any, res) => {
+  const { id } = req.params;
+  try {
+    if (req.user.role !== 'admin') {
+      const assignment = await pool.query(
+        'SELECT 1 FROM material_assignments WHERE material_id = $1 AND client_id = $2',
+        [id, req.user.userId]
+      );
+      if (assignment.rows.length === 0) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
+    }
+
+    const result = await pool.query('SELECT file_name, file_mime, file_data FROM materials WHERE id = $1', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Material not found' });
+    }
+    const file = result.rows[0];
+    res.set('Content-Type', file.file_mime);
+    res.set('Content-Disposition', `attachment; filename="${file.file_name.replace(/"/g, '')}"`);
+    res.send(file.file_data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Submit an answer document (any authenticated user, tied to the caller)
+app.post('/api/submissions', authenticateToken, async (req: any, res) => {
+  const { material_id, file_name, file_mime, file_data } = req.body;
+
+  if (!file_name || !file_mime || typeof file_data !== 'string') {
+    return res.status(400).json({ error: 'file_name, file_mime, and file_data are required' });
+  }
+
+  let buffer: Buffer;
+  try {
+    buffer = Buffer.from(file_data, 'base64');
+  } catch (err) {
+    return res.status(400).json({ error: 'file_data must be valid base64' });
+  }
+
+  if (buffer.length > MAX_FILE_SIZE_BYTES) {
+    return res.status(413).json({ error: `File too large. Max size is ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB` });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO submissions (client_id, material_id, file_name, file_mime, file_data)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, client_id, material_id, file_name, file_mime, status, feedback, submitted_at`,
+      [req.user.userId, material_id || null, file_name, file_mime, buffer]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// List submissions - admin sees all (with client/material names), client sees only their own
+app.get('/api/submissions', authenticateToken, async (req: any, res) => {
+  try {
+    if (req.user.role === 'admin') {
+      const result = await pool.query(`
+        SELECT s.id, s.client_id, u.name AS client_name, u.email AS client_email,
+               s.material_id, m.title AS material_title,
+               s.file_name, s.file_mime, s.status, s.feedback, s.submitted_at, s.reviewed_at
+        FROM submissions s
+        JOIN users u ON u.id = s.client_id
+        LEFT JOIN materials m ON m.id = s.material_id
+        ORDER BY s.submitted_at DESC
+      `);
+      res.json(result.rows);
+    } else {
+      const result = await pool.query(`
+        SELECT s.id, s.client_id, s.material_id, m.title AS material_title,
+               s.file_name, s.file_mime, s.status, s.feedback, s.submitted_at, s.reviewed_at
+        FROM submissions s
+        LEFT JOIN materials m ON m.id = s.material_id
+        WHERE s.client_id = $1
+        ORDER BY s.submitted_at DESC
+      `, [req.user.userId]);
+      res.json(result.rows);
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Review a submission (admin only)
+app.put('/api/submissions/:id/review', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { status, feedback } = req.body;
+
+  if (status !== 'approved' && status !== 'rejected') {
+    return res.status(400).json({ error: "status must be 'approved' or 'rejected'" });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE submissions SET status = $1, feedback = $2, reviewed_at = CURRENT_TIMESTAMP
+       WHERE id = $3
+       RETURNING id, client_id, material_id, file_name, file_mime, status, feedback, submitted_at, reviewed_at`,
+      [status, feedback || '', id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Download a submission's file - admin always allowed, client only their own
+app.get('/api/submissions/:id/file', authenticateToken, async (req: any, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('SELECT client_id, file_name, file_mime, file_data FROM submissions WHERE id = $1', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+    const file = result.rows[0];
+    if (req.user.role !== 'admin' && file.client_id !== req.user.userId) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    res.set('Content-Type', file.file_mime);
+    res.set('Content-Disposition', `attachment; filename="${file.file_name.replace(/"/g, '')}"`);
+    res.send(file.file_data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
