@@ -66,6 +66,14 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+// pg.Pool emits 'error' on idle clients that go bad (e.g. Neon closing an
+// idle connection). Without a listener, that's an unhandled event that
+// crashes the whole Node process - the exact shape of a Vercel
+// FUNCTION_INVOCATION_FAILED that has nothing to do with any specific route.
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle database client', err);
+});
+
 // Session signing secret. Override with JWT_SECRET if you want your own.
 const JWT_SECRET = process.env.JWT_SECRET || 'clarisma-cms-2026-secret';
 
