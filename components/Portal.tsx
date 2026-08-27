@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 
-interface AdminPageProps {
+interface PortalProps {
   onBack: () => void;
+  onUnauthorized: () => void;
 }
 
 interface Retreat {
@@ -61,15 +62,13 @@ interface FormField {
   required: boolean;
 }
 
-const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passcode, setPasscode] = useState('');
+const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
+  const [role, setRole] = useState<'admin' | 'client' | null>(null);
   const [retreats, setRetreats] = useState<Retreat[]>([]);
   const [isEditing, setIsEditing] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<Retreat>>({});
   const [tagsInput, setTagsInput] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'retreats' | 'settings' | 'reservations' | 'shop' | 'landing' | 'services'>('retreats');
   const [settings, setSettings] = useState<any>({});
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -92,42 +91,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [editServiceForm, setEditServiceForm] = useState<any>({});
   const [isCreatingService, setIsCreatingService] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passcode })
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem('adminToken', data.token);
-        setIsAuthenticated(true);
-        fetchRetreats();
-      } else {
-        let detail = '';
-        try {
-          const body = await res.text();
-          detail = body ? `: ${body.slice(0, 200)}` : '';
-        } catch (parseErr) {
-          // ignore, use empty detail
-        }
-        setError(`Login failed (HTTP ${res.status})${detail}`);
-      }
-    } catch (err) {
-      setError(`Network error: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  };
-
   const handleLogout = () => {
-    localStorage.removeItem('adminToken');
-    if (onBack) {
-      onBack();
-    } else {
-      setIsAuthenticated(false);
-    }
+    localStorage.removeItem('authToken');
+    onUnauthorized();
   };
 
   const fetchRetreats = async () => {
@@ -160,7 +126,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   };
 
   const fetchReservations = async () => {
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('authToken');
     if (!token) return;
     try {
       const res = await fetch('/api/reservations', {
@@ -178,8 +144,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    if (!token) return;
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      onUnauthorized();
+      return;
+    }
 
     const verifyToken = async () => {
       try {
@@ -187,21 +156,29 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) {
-          localStorage.removeItem('adminToken');
+          localStorage.removeItem('authToken');
+          onUnauthorized();
           return;
         }
-        setIsAuthenticated(true);
-        fetchRetreats();
-        fetchSettings();
-        fetchReservations();
-        fetchProducts();
-        fetchServices();
+        const data = await res.json();
+        const userRole: 'admin' | 'client' = data.user?.role === 'admin' ? 'admin' : 'client';
+        setRole(userRole);
+
+        if (userRole === 'admin') {
+          fetchRetreats();
+          fetchSettings();
+          fetchReservations();
+          fetchProducts();
+          fetchServices();
+        }
       } catch (err) {
-        localStorage.removeItem('adminToken');
+        localStorage.removeItem('authToken');
+        onUnauthorized();
       }
     };
 
     verifyToken();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchProducts = async () => {
@@ -245,7 +222,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   };
 
   const handleSaveService = async () => {
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('authToken');
     if (!token) return;
 
     try {
@@ -282,7 +259,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const handleDeleteService = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this service?')) return;
 
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('authToken');
     if (!token) return;
 
     try {
@@ -304,7 +281,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   };
 
   const handleSaveTestimonial = async () => {
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('authToken');
     if (!token) return;
 
     try {
@@ -336,7 +313,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const handleDeleteTestimonial = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this testimonial?')) return;
 
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('authToken');
     if (!token) return;
 
     try {
@@ -358,7 +335,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   };
 
   const handleSave = async () => {
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('authToken');
     if (!token) return;
 
     try {
@@ -392,7 +369,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   };
 
   const handleSaveSettings = async () => {
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('authToken');
     if (!token) return;
     
     setIsSavingSettings(true);
@@ -422,7 +399,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this retreat?')) return;
 
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('authToken');
     if (!token) return;
 
     try {
@@ -444,7 +421,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   };
 
   const handleSaveProduct = async () => {
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('authToken');
     if (!token) return;
 
     try {
@@ -476,7 +453,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const handleDeleteProduct = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this product?')) return;
 
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('authToken');
     if (!token) return;
 
     try {
@@ -498,7 +475,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   };
 
   const handleUpdateReservationStatus = async (id: number, status: string) => {
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('authToken');
     if (!token) return;
 
     try {
@@ -533,39 +510,36 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     setCustomFields(customFields.filter(f => f.id !== id));
   };
 
-  if (!isAuthenticated) {
+  if (role === null) {
+    return (
+      <div className="min-h-screen pt-32 px-6 flex items-center justify-center text-slate-400">
+        Loading...
+      </div>
+    );
+  }
+
+  if (role !== 'admin') {
     return (
       <div className="min-h-screen pt-32 px-6 flex items-center justify-center">
-        <div className="bg-white/5 p-8 rounded-3xl border border-white/10 max-w-md w-full">
-          <button 
+        <div className="bg-white/5 p-8 rounded-3xl border border-white/10 max-w-md w-full text-center">
+          <button
             onClick={onBack}
             className="flex items-center gap-2 text-clarisma-gold hover:text-white transition-colors mb-8"
           >
             <ArrowLeft size={20} />
             <span>Back to Home</span>
           </button>
-          
-          <h2 className="text-3xl font-black mb-6">Admin Login</h2>
-          
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold mb-2">Access Code</label>
-              <input
-                type="password"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
-                placeholder="Enter access code"
-              />
-            </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-            <button 
-              type="submit"
-              className="w-full bg-clarisma-gold text-clarisma-red font-black py-3 rounded-xl hover:bg-white transition-colors"
-            >
-              Login
-            </button>
-          </form>
+
+          <h2 className="text-3xl font-black mb-4">Welcome</h2>
+          <p className="text-slate-400 mb-8">
+            Your learning materials and tasks will appear here soon.
+          </p>
+          <button
+            onClick={handleLogout}
+            className="text-sm border border-white/20 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            Logout
+          </button>
         </div>
       </div>
     );
@@ -667,6 +641,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                   { key: 'show_target_audience', label: 'Target Audience' },
                   { key: 'show_specialized_programs', label: 'Programs' },
                   { key: 'show_process', label: 'Methodology' },
+                  { key: 'show_ikigai', label: 'Ikigai Chart' },
                   { key: 'show_testimonials', label: 'Testimonials' },
                   { key: 'show_contact', label: 'Contact' }
                 ].map(section => (
@@ -1930,4 +1905,4 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   );
 };
 
-export default AdminPage;
+export default Portal;
