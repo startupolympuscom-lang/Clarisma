@@ -506,6 +506,26 @@ app.post('/api/auth/login', loginRateLimiter, async (req: any, res: any) => {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
+  // TEMPORARY emergency path while we track down a deployment crash on the
+  // normal DB-backed login below. Only fires if EMERGENCY_ADMIN_PASSWORD is
+  // set in Vercel and matched exactly - remove this block (and the env var)
+  // once the real login is confirmed working again.
+  if (
+    process.env.EMERGENCY_ADMIN_PASSWORD &&
+    email === ADMIN_EMAIL &&
+    password === process.env.EMERGENCY_ADMIN_PASSWORD
+  ) {
+    let userId = 1;
+    try {
+      const lookup = await pool.query('SELECT id FROM users WHERE email = $1', [ADMIN_EMAIL]);
+      if (lookup.rows[0]?.id) userId = lookup.rows[0].id;
+    } catch (err) {
+      console.error('Emergency login: DB lookup failed, falling back to id 1', err);
+    }
+    const token = jwt.sign({ userId, role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
+    return res.json({ token, user: { id: userId, email: ADMIN_EMAIL, name: ADMIN_NAME, role: 'admin' } });
+  }
+
   try {
     const result = await pool.query('SELECT id, email, password_hash, name, role FROM users WHERE email = $1', [email]);
     const user = result.rows[0];
