@@ -4,7 +4,6 @@ import { ArrowLeft } from 'lucide-react';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -17,7 +16,7 @@ const Login: React.FC = () => {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ password })
       });
 
       if (res.ok) {
@@ -55,17 +54,6 @@ const Login: React.FC = () => {
         <h2 className="text-3xl font-black mb-6">Login</h2>
 
         <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold mb-2">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-clarisma-gold"
-              placeholder="you@example.com"
-              autoComplete="username"
-            />
-          </div>
           <div>
             <label className="block text-sm font-bold mb-2">Password</label>
             <input
