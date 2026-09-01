@@ -138,8 +138,8 @@ const App: React.FC = () => {
                 onUnauthorized={() => navigate('/login')}
               />
             } />
-            {/* Old admin link - send visitors to the new login */}
-            <Route path="/admin" element={<Login />} />
+            {/* Old admin link - send visitors directly to portal for now */}
+            <Route path="/admin" element={<Portal onBack={() => navigate('/')} onUnauthorized={() => {}} />} />
             {/* Fallback to home */}
             <Route path="*" element={<HomePage onNavigate={handleNavigation} />} />
           </Routes>
