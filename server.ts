@@ -84,6 +84,7 @@ if (!dbUrl || dbUrl.includes('user:password@host') || dbUrl.includes('@host:') |
 } else {
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
   });
   pool.on('error', (err: any) => {
     console.error('Unexpected error on idle database client', err);
@@ -1388,12 +1389,11 @@ app.post('/api/tasks/:id/comments', authenticateToken, async (req: any, res) => 
   }
 });
 
-// Create tables / seed the admin account on cold start. Fire-and-forget:
-// routes don't depend on this having finished (each one queries the pool
-// directly), and a failure here must never take down the whole function.
-initDB().catch((err) => {
-  console.error('Failed to initialize database:', err);
-});
+// Create tables / seed the admin account. 
+// Do NOT run this automatically on cold start in Vercel to avoid FUNCTION_INVOCATION_FAILED.
+// initDB().catch((err) => {
+//   console.error('Failed to initialize database:', err);
+// });
 
 export { app, initDB };
 export default app;
