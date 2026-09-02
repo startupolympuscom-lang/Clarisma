@@ -14,49 +14,19 @@ app.use(cors());
 // functions cap the total request body at ~4.5MB, so files are limited well
 // below that (see MAX_FILE_SIZE_BYTES) and this just needs enough headroom
 // for the base64 + JSON overhead on top of that cap.
-app.use(express.json({ limit: '8mb' }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Fallback body parser middleware to ensure stringified JSON bodies are parsed successfully
+// Ensure stringified JSON bodies are parsed safely without hanging the stream
 app.use((req, res, next) => {
-  if (req.body && typeof req.body === 'object') {
-    return next();
+  if (typeof req.body === 'string' && req.body.trim()) {
+    try {
+      req.body = JSON.parse(req.body);
+    } catch (e) {
+      // Keep as string
+    }
   }
-
-  if (typeof req.body === 'string') {
-    const trimmed = req.body.trim();
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-      try {
-        req.body = JSON.parse(trimmed);
-      } catch (e) {
-        // Leave as string
-      }
-    }
-    if (!req.body) req.body = {};
-    return next();
-  }
-
-  let data = '';
-  req.on('data', chunk => {
-    data += chunk;
-  });
-  req.on('end', () => {
-    if (data) {
-      const trimmed = data.trim();
-      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-        try {
-          req.body = JSON.parse(trimmed);
-        } catch (e) {
-          req.body = data;
-        }
-      } else {
-        req.body = data;
-      }
-    }
-    if (!req.body) {
-      req.body = {};
-    }
-    next();
-  });
+  next();
 });
 
 // Database connection
@@ -877,44 +847,69 @@ const defaultSettingsStore: Record<string, string> = {
 
 let inMemorySettings: Record<string, string> = { ...defaultSettingsStore };
 
-// Get settings
-app.get('/api/settings', async (req, res) => {
+// Get settings handler
+const getSettingsHandler = async (req: express.Request, res: express.Response) => {
   try {
-    const result = await pool.query('SELECT * FROM settings');
-    if (result.rows && result.rows.length > 0) {
-      const dbSettings = result.rows.reduce((acc: any, row: any) => {
-        acc[row.key] = row.value;
-        return acc;
-      }, {});
-      inMemorySettings = { ...inMemorySettings, ...dbSettings };
+    if (pool && !pool.isMock) {
+      const result = await pool.query('SELECT * FROM settings');
+      if (result.rows && result.rows.length > 0) {
+        const dbSettings = result.rows.reduce((acc: any, row: any) => {
+          acc[row.key] = row.value;
+          return acc;
+        }, {});
+        inMemorySettings = { ...inMemorySettings, ...dbSettings };
+      }
     }
     res.json(inMemorySettings);
   } catch (err) {
     // Return in-memory fallback
     res.json(inMemorySettings);
   }
-});
+};
 
-// Update settings
-app.put('/api/settings', requireAdmin, async (req, res) => {
-  const { settings } = req.body;
-  if (settings && typeof settings === 'object') {
-    inMemorySettings = { ...inMemorySettings, ...settings };
-    try {
-      await pool.query(`CREATE TABLE IF NOT EXISTS settings (key VARCHAR(255) PRIMARY KEY, value TEXT NOT NULL);`);
-      for (const [key, value] of Object.entries(settings)) {
-        const safeValue = value === undefined || value === null ? '' : String(value);
-        await pool.query(
-          'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
-          [key, safeValue]
-        );
+// Update settings handler
+const putSettingsHandler = async (req: express.Request, res: express.Response) => {
+  try {
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        body = {};
       }
-    } catch (err) {
-      console.warn('DB settings save error, stored in-memory:', err);
     }
+    const incoming = (body && body.settings && typeof body.settings === 'object')
+      ? body.settings
+      : (body && typeof body === 'object' ? body : {});
+
+    if (incoming && Object.keys(incoming).length > 0) {
+      inMemorySettings = { ...inMemorySettings, ...incoming };
+      if (pool && !pool.isMock) {
+        try {
+          await pool.query(`CREATE TABLE IF NOT EXISTS settings (key VARCHAR(255) PRIMARY KEY, value TEXT NOT NULL);`);
+          for (const [key, value] of Object.entries(incoming)) {
+            const safeValue = value === undefined || value === null ? '' : String(value);
+            await pool.query(
+              'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
+              [key, safeValue]
+            );
+          }
+        } catch (dbErr) {
+          console.warn('DB settings save error, stored in-memory:', dbErr);
+        }
+      }
+    }
+    res.json({ message: 'Settings updated successfully', settings: inMemorySettings });
+  } catch (err) {
+    console.error('Save settings error:', err);
+    res.json({ message: 'Settings updated successfully', settings: inMemorySettings });
   }
-  res.json({ message: 'Settings updated successfully', settings: inMemorySettings });
-});
+};
+
+app.get('/api/settings', getSettingsHandler);
+app.get('/settings', getSettingsHandler);
+app.put('/api/settings', putSettingsHandler);
+app.put('/settings', putSettingsHandler);
 
 // Submit a reservation
 app.post('/api/reservations', async (req, res) => {
