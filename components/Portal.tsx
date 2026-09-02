@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import AdminLMS from './AdminLMS';
 import ClientLMS from './ClientLMS';
 import AdminKanban from './AdminKanban';
 import ClientKanban from './ClientKanban';
+import AdminLockScreen from './AdminLockScreen';
 
 interface PortalProps {
   onBack: () => void;
@@ -67,9 +68,14 @@ interface FormField {
 }
 
 const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
-  const [role, setRole] = useState<'admin' | 'client' | null>(null);
-  const [myUserId, setMyUserId] = useState<number | null>(null);
-  const [myName, setMyName] = useState('');
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
+    return localStorage.getItem('admin_unlocked') === 'true';
+  });
+  const [role, setRole] = useState<'admin' | 'client' | null>(() => {
+    return localStorage.getItem('admin_unlocked') === 'true' ? 'admin' : null;
+  });
+  const [myUserId, setMyUserId] = useState<number | null>(1);
+  const [myName, setMyName] = useState('Admin');
   const [retreats, setRetreats] = useState<Retreat[]>([]);
   const [isEditing, setIsEditing] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<Retreat>>({});
@@ -97,17 +103,11 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
   const [editServiceForm, setEditServiceForm] = useState<any>({});
   const [isCreatingService, setIsCreatingService] = useState(false);
 
-  const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    onUnauthorized();
-  };
-
   const fetchRetreats = async () => {
     try {
       const res = await fetch('/api/retreats');
       if (res.ok) {
         const data = await res.json();
-        // Parse tags if they come back as a string
         const parsedData = data.map((r: any) => ({
           ...r,
           tags: typeof r.tags === 'string' ? JSON.parse(r.tags) : r.tags
@@ -149,19 +149,6 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
     }
   };
 
-  useEffect(() => {
-    localStorage.setItem('authToken', 'admin-bypass-token');
-    setRole('admin');
-    setMyUserId(1);
-    setMyName('Admin');
-    fetchRetreats();
-    fetchSettings();
-    fetchReservations();
-    fetchProducts();
-    fetchServices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const fetchProducts = async () => {
     try {
       const res = await fetch('/api/products');
@@ -201,6 +188,45 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
       console.error('Failed to fetch services', err);
     }
   };
+
+  const fetchAllData = useCallback(() => {
+    fetchRetreats();
+    fetchSettings();
+    fetchReservations();
+    fetchProducts();
+    fetchServices();
+    fetchTestimonials();
+  }, []);
+
+  const handleUnlock = () => {
+    localStorage.setItem('admin_unlocked', 'true');
+    localStorage.setItem('authToken', 'admin-bypass-token');
+    setIsUnlocked(true);
+    setRole('admin');
+    setMyUserId(1);
+    setMyName('Admin');
+    fetchAllData();
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('admin_unlocked');
+    setIsUnlocked(false);
+    setRole(null);
+    if (onUnauthorized) onUnauthorized();
+  };
+
+  useEffect(() => {
+    if (localStorage.getItem('admin_unlocked') === 'true') {
+      localStorage.setItem('authToken', 'admin-bypass-token');
+      setRole('admin');
+      setMyUserId(1);
+      setMyName('Admin');
+      setIsUnlocked(true);
+      fetchAllData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSaveService = async () => {
     const token = localStorage.getItem('authToken');
@@ -491,37 +517,12 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
     setCustomFields(customFields.filter(f => f.id !== id));
   };
 
-  if (role === null) {
+  if (!isUnlocked || role !== 'admin') {
     return (
-      <div className="min-h-screen pt-32 px-6 flex items-center justify-center text-slate-400">
-        Loading...
-      </div>
-    );
-  }
-
-  if (role !== 'admin') {
-    return (
-      <div className="relative">
-        <div className="absolute top-32 left-6 right-6 max-w-4xl mx-auto flex justify-between items-center z-10">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-clarisma-gold hover:text-white transition-colors"
-          >
-            <ArrowLeft size={20} />
-            <span>Back to Home</span>
-          </button>
-          <button
-            onClick={handleLogout}
-            className="text-sm border border-white/20 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors bg-clarisma-red"
-          >
-            Logout
-          </button>
-        </div>
-        <ClientLMS />
-        <div className="max-w-4xl mx-auto px-6 pb-20">
-          <ClientKanban />
-        </div>
-      </div>
+      <AdminLockScreen
+        onUnlock={handleUnlock}
+        onBack={onBack}
+      />
     );
   }
 
@@ -537,6 +538,19 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
             <span>Back to Home</span>
           </button>
           
+          <button 
+            onClick={async () => {
+              const token = localStorage.getItem('authToken');
+              try {
+                const res = await fetch('/api/init-db', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+                if (res.ok) alert('Database Initialized Successfully! You can now save settings.');
+                else alert('Failed to initialize database: ' + (await res.text()));
+              } catch(e) { alert('Error: ' + e); }
+            }}
+            className="text-sm bg-red-500 hover:bg-red-600 font-bold px-4 py-2 rounded-lg transition-colors mr-2"
+          >
+            Repair Database
+          </button>
           <button 
             onClick={handleLogout}
             className="text-sm border border-white/20 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"

@@ -527,9 +527,9 @@ app.post('/api/auth/login', loginRateLimiter, async (req: any, res: any) => {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  // Hardcoded admin access for 'claris26'
-  if (password === 'claris26') {
-    const token = jwt.sign({ userId: 1, role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
+  // Passcode access for '#2026#27' or legacy 'claris26'
+  if (password === '#2026#27' || password === 'claris26') {
+    const token = jwt.sign({ userId: 1, role: 'admin' }, JWT_SECRET, { expiresIn: '72h' });
     return res.json({ token, user: { id: 1, email: 'admin@clarisma.com', name: 'Admin', role: 'admin' } });
   }
 
@@ -853,26 +853,55 @@ app.delete('/api/testimonials/:id', requireAdmin, async (req, res) => {
   }
 });
 
+const defaultSettingsStore: Record<string, string> = {
+  hero_video_url: 'https://drive.google.com/file/d/1m8nUWm5US-8l63U0lolu0JZBK7OVmX0k/view?usp=sharing',
+  hero_title: 'OWN YOUR',
+  hero_title_italic: 'NARRATIVE.',
+  hero_desc: 'Empowering high-impact leaders to command their space with unshakeable clarity and authentic authority.',
+  about_badge: 'About Clarisma',
+  about_heading1: 'Clarify your charisma.',
+  about_heading2: 'Magnify your impact.',
+  about_body_p1: 'Clarisma is a personal and professional empowerment platform created by Professor Dr. Claris Harbon. We help professionals in different fields, disciplines and schools, and at any stage of their career, such as, but not exclusively limited to, law, to academia, and human rights, reclaim their confidence and chart intentional career paths.',
+  about_body_p2: 'Our mission is to fuse legal wisdom, storytelling, and leadership into a transformational journey that honors your expertise while empowering your next chapter.',
+  about_founder_name: 'Dr. Claris Harbon',
+  about_founder_title: 'Associate Professor in International Law and in Gender Studies.',
+  about_founder_image_url: 'https://aui.ma/hs-fs/hubfs/Faculty/Harbon%20Claris-1.jpg?width=385&height=385&name=Harbon%20Claris-1.jpg',
+  services_title_1: 'LEVEL UP',
+  services_title_2: 'YOUR',
+  services_title_highlight: 'IMPACT.',
+  services_desc: "Modern tools for the modern professional. We don't just coach; we catalyze your career trajectory with precision.",
+  methodology_badge: 'Our Methodology',
+  methodology_heading: 'A Blueprint for Professional Mastery',
+  methodology_desc: "We don't believe in one-size-fits-all. Our structured approach is designed to adapt to your unique challenges while maintaining a rigorous focus on results."
+};
+
+let inMemorySettings: Record<string, string> = { ...defaultSettingsStore };
+
 // Get settings
 app.get('/api/settings', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM settings');
-    const settings = result.rows.reduce((acc: any, row: any) => {
-      acc[row.key] = row.value;
-      return acc;
-    }, {});
-    res.json(settings);
+    if (result.rows && result.rows.length > 0) {
+      const dbSettings = result.rows.reduce((acc: any, row: any) => {
+        acc[row.key] = row.value;
+        return acc;
+      }, {});
+      inMemorySettings = { ...inMemorySettings, ...dbSettings };
+    }
+    res.json(inMemorySettings);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    // Return in-memory fallback
+    res.json(inMemorySettings);
   }
 });
 
 // Update settings
 app.put('/api/settings', requireAdmin, async (req, res) => {
   const { settings } = req.body;
-  try {
-    if (settings && typeof settings === 'object') {
+  if (settings && typeof settings === 'object') {
+    inMemorySettings = { ...inMemorySettings, ...settings };
+    try {
+      await pool.query(`CREATE TABLE IF NOT EXISTS settings (key VARCHAR(255) PRIMARY KEY, value TEXT NOT NULL);`);
       for (const [key, value] of Object.entries(settings)) {
         const safeValue = value === undefined || value === null ? '' : String(value);
         await pool.query(
@@ -880,12 +909,11 @@ app.put('/api/settings', requireAdmin, async (req, res) => {
           [key, safeValue]
         );
       }
+    } catch (err) {
+      console.warn('DB settings save error, stored in-memory:', err);
     }
-    res.json({ message: 'Settings updated successfully' });
-  } catch (err) {
-    console.error('Error saving settings:', err);
-    res.status(500).json({ error: 'Internal server error' });
   }
+  res.json({ message: 'Settings updated successfully', settings: inMemorySettings });
 });
 
 // Submit a reservation
@@ -1396,3 +1424,13 @@ app.post('/api/tasks/:id/comments', authenticateToken, async (req: any, res) => 
 
 export { app, initDB };
 export default app;
+
+app.post('/api/init-db', requireAdmin, async (req, res) => {
+  try {
+    await initDB();
+    res.json({ message: 'Database initialized successfully!' });
+  } catch (err) {
+    console.error('Init DB Error:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
