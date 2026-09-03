@@ -132,7 +132,7 @@
   "products": [
     {
       "id": 1,
-      "title": "Product 1",
+      "title": "Test Product",
       "description": "Desc",
       "price": "$25",
       "image_url": "#",
@@ -179,7 +179,74 @@
       "download_url": "#",
       "category": "Curated Experience Bundles",
       "created_at": "2026-09-03T09:56:06.083Z"
+    },
+    {
+      "id": 7,
+      "title": "Test Product",
+      "description": "Desc",
+      "price": "10",
+      "image_url": "test.jpg",
+      "download_url": "test.pdf",
+      "category": "Test",
+      "created_at": "2026-09-03T16:58:21.361Z"
+    },
+    {
+      "id": 8,
+      "title": "Test Product",
+      "description": "",
+      "price": "0.00",
+      "image_url": "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&q=80",
+      "download_url": "#",
+      "category": "Digital",
+      "created_at": "2026-09-03T16:59:05.898Z"
     }
   ],
-  "reservations": []
+  "reservations": [],
+  "users": [
+    {
+      "id": 1,
+      "email": "admin@clarisma.com",
+      "password_hash": "",
+      "name": "Dr. Claris Harbon",
+      "role": "admin",
+      "created_at": "2026-09-03T15:57:47.865Z"
+    },
+    {
+      "id": 2,
+      "email": "sarah.client@clarisma.com",
+      "password_hash": "",
+      "name": "Sarah Benali",
+      "role": "client",
+      "created_at": "2026-09-03T15:57:47.865Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Review submitted strengths assessment",
+      "description": "Analyze executive presence and provide detailed narrative feedback.",
+      "assignee_id": 1,
+      "assignee_name": "Dr. Claris Harbon",
+      "created_by": 1,
+      "created_by_name": "Dr. Claris Harbon",
+      "due_date": "2026-10-15",
+      "status": "in_progress",
+      "created_at": "2026-09-03T15:57:47.865Z"
+    },
+    {
+      "id": 2,
+      "title": "Complete Narrative Sovereignty Workbook",
+      "description": "Work through modules 1 and 2 before the upcoming 1-on-1 coaching session.",
+      "assignee_id": 2,
+      "assignee_name": "Sarah Benali",
+      "created_by": 1,
+      "created_by_name": "Dr. Claris Harbon",
+      "due_date": "2026-10-20",
+      "status": "todo",
+      "created_at": "2026-09-03T15:57:47.865Z"
+    }
+  ],
+  "task_comments": [],
+  "materials": [],
+  "submissions": []
 }
