@@ -1,0 +1,165 @@
+{
+  "settings": {
+    "hero_video_url": "https://drive.google.com/file/d/1m8nUWm5US-8l63U0lolu0JZBK7OVmX0k/view?usp=sharing",
+    "hero_title": "OWN YOUR",
+    "hero_title_italic": "NARRATIVE.",
+    "hero_desc": "Empowering high-impact leaders to command their space with unshakeable clarity and authentic authority.",
+    "about_badge": "About Clarisma",
+    "about_heading1": "Clarify your charisma.",
+    "about_heading2": "Magnify your impact.",
+    "about_body_p1": "Clarisma is a personal and professional empowerment platform created by Professor Dr. Claris Harbon. We help professionals in different fields, disciplines and schools, and at any stage of their career, such as, but not exclusively limited to, law, to academia, and human rights, reclaim their confidence and chart intentional career paths.",
+    "about_body_p2": "Our mission is to fuse legal wisdom, storytelling, and leadership into a transformational journey that honors your expertise while empowering your next chapter.",
+    "about_founder_name": "Dr. Claris Harbon",
+    "about_founder_title": "Associate Professor in International Law and in Gender Studies.",
+    "about_founder_image_url": "https://aui.ma/hs-fs/hubfs/Faculty/Harbon%20Claris-1.jpg?width=385&height=385&name=Harbon%20Claris-1.jpg",
+    "services_title_1": "LEVEL UP",
+    "services_title_2": "YOUR",
+    "services_title_highlight": "IMPACT.",
+    "services_desc": "Modern tools for the modern professional. We don't just coach; we catalyze your career trajectory with precision.",
+    "methodology_badge": "Our Methodology",
+    "methodology_heading": "A Blueprint for Professional Mastery",
+    "methodology_desc": "We don't believe in one-size-fits-all. Our structured approach is designed to adapt to your unique challenges while maintaining a rigorous focus on results.",
+    "show_hero": "true",
+    "show_about": "true",
+    "show_services": "true",
+    "show_target_audience": "true",
+    "show_specialized_programs": "true",
+    "show_process": "true",
+    "show_ikigai": "true",
+    "show_testimonials": "true",
+    "show_contact": "true",
+    "target_audience_badge": "Target Audience",
+    "target_audience_heading": "Who It's For",
+    "target_audience_desc": "Clarisma serves early and mid-career professionals who are ready to reclaim their narrative and step into their full potential.",
+    "contact_booking_url": "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1yhkKwB4s2LYWJBw0qFheEvjNwgyGiXgYg8KZsoaMbPndGdLhpYmBJKPayNG6_PdtiIe-xBuDW",
+    "contact_email": "clarisma.info@gmail.com"
+  },
+  "services": [
+    {
+      "id": 1,
+      "title": "RECLAIM YOUR CAREER",
+      "badge": "One-on-One Coaching",
+      "description": "Personalized coaching for professionals at all stages—from students to seasoned experts—navigating career transitions with visibility and recognition.",
+      "icon_name": "User",
+      "items": "[{\"icon\":\"Compass\",\"title\":\"Career Clarity\",\"desc\":\"Strengths assessment & roadmapping\"},{\"icon\":\"GraduationCap\",\"title\":\"Academic Edge\",\"desc\":\"PhD defense & research strategies\"},{\"icon\":\"Heart\",\"title\":\"Resilience\",\"desc\":\"Burnout recovery & self-care\"},{\"icon\":\"Eye\",\"title\":\"Visibility\",\"desc\":\"Strategic personal branding\"}]",
+      "link_text": "Book a Session",
+      "link_url": "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1yhkKwB4s2LYWJBw0qFheEvjNwgyGiXgYg8KZsoaMbPndGdLhpYmBJKPayNG6_PdtiIe-xBuDW",
+      "color_theme": "gold",
+      "order_index": 1,
+      "created_at": "2026-09-03T09:56:06.083Z"
+    },
+    {
+      "id": 2,
+      "title": "COLLECTIVE GROWTH",
+      "badge": "Group Programs",
+      "description": "Transformative workshops and retreats designed to build confidence and foster supportive communities.",
+      "icon_name": "Users",
+      "items": "[{\"icon\":\"Mic\",\"title\":\"Confidence\",\"desc\":\"Public speaking & EQ\"},{\"icon\":\"Briefcase\",\"title\":\"Leadership\",\"desc\":\"Career navigation\"},{\"icon\":\"BookOpen\",\"title\":\"Academic\",\"desc\":\"Thesis & research\"},{\"icon\":\"Megaphone\",\"title\":\"Advocacy\",\"desc\":\"Women's empowerment\"}]",
+      "link_text": "View Retreats",
+      "link_url": "retreats",
+      "color_theme": "orange",
+      "order_index": 2,
+      "created_at": "2026-09-03T09:56:06.083Z"
+    }
+  ],
+  "testimonials": [
+    {
+      "id": 1,
+      "quote": "Working with Dr. Harbon was one of the most meaningful experiences of my studies. Through our projects, and my volunteering to promote equality and discuss women’s rights in Morocco, I learned the power of creating spaces where women can grow, learn, and be heard. Her fiery soul, constant energy, and ability to find meaning in everything around her have shaped the way I approach challenges and purpose.",
+      "author": "Kenza Sifi",
+      "role": "Student of International Relations & Affair",
+      "company": "University Al Akhawayn",
+      "created_at": "2026-09-03T09:56:06.083Z"
+    },
+    {
+      "id": 2,
+      "quote": "At Startup Olympus, we look for founders who are solving real problems with passion. Dr. Claris Harbon is the embodiment of that spirit. Through Clarisma, she is redefining what it means to be empowered in both life and business. Her energy is infectious, and her dedication to helping others unlock their potential is genuine. Dr. Harbon is a force of nature.",
+      "author": "Abderrahim Hamidine",
+      "role": "Director",
+      "company": "Startup Olympus",
+      "created_at": "2026-09-03T09:56:06.083Z"
+    }
+  ],
+  "retreats": [
+    {
+      "id": 1,
+      "title": "The Narrative Sovereignty Retreat",
+      "date": "October 14 – 19, 2026",
+      "location": "Kasbah Bab Ourika, Ourika Valley",
+      "city": "Marrakech, Morocco",
+      "tags": "[\"Executive Leadership\",\"Legal Storytelling\",\"Radical Presence\"]",
+      "description": "An intimate 5-day immersive journey at the foothills of the Atlas Mountains designed for high-impact leaders, legal advocates, and changemakers to reclaim their authentic voice, dismantle imposter anxiety, and align their career trajectory.",
+      "image_url": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80",
+      "price": "$3,850",
+      "signup_url": "",
+      "seats_available": "8 Seats Available",
+      "agenda_url": "#",
+      "payment_details": "Deposit of $1,000 required to hold your seat. Remaining balance due 30 days prior.",
+      "custom_form_schema": "[{\"id\":\"1\",\"label\":\"Dietary Preferences or Allergies\",\"type\":\"text\",\"required\":false},{\"id\":\"2\",\"label\":\"What is your primary breakthrough goal for this retreat?\",\"type\":\"textarea\",\"required\":true}]",
+      "created_at": "2026-09-03T09:56:06.083Z"
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "title": "Legal Storytelling Whitepaper",
+      "description": "A comprehensive guide for lawyers on using narrative techniques to build more persuasive cases and command the courtroom.",
+      "price": "49.00",
+      "image_url": "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&q=80",
+      "download_url": "#",
+      "category": "Intelligence Library",
+      "created_at": "2026-09-03T09:56:06.083Z"
+    },
+    {
+      "id": 2,
+      "title": "The Charisma Blueprint",
+      "description": "A defining e-book on reclaiming your professional narrative and building unshakeable confidence.",
+      "price": "29.99",
+      "image_url": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80",
+      "download_url": "#",
+      "category": "Intelligence Library",
+      "created_at": "2026-09-03T09:56:06.083Z"
+    },
+    {
+      "id": 3,
+      "title": "Advocacy Toolkit",
+      "description": "Essential templates, checklists, and frameworks for transitioning research into impactful public advocacy.",
+      "price": "45.00",
+      "image_url": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&q=80",
+      "download_url": "#",
+      "category": "Professional Toolkit",
+      "created_at": "2026-09-03T09:56:06.083Z"
+    },
+    {
+      "id": 4,
+      "title": "Academic Impact Guide",
+      "description": "A step-by-step guide to managing your PhD research while building a strategic public profile.",
+      "price": "35.00",
+      "image_url": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&q=80",
+      "download_url": "#",
+      "category": "Intelligence Library",
+      "created_at": "2026-09-03T09:56:06.083Z"
+    },
+    {
+      "id": 5,
+      "title": "Confidence Affirmation Audio",
+      "description": "A guided audio experience designed to program your mindset for authority and presence before high-stakes talks.",
+      "price": "19.99",
+      "image_url": "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&q=80",
+      "download_url": "#",
+      "category": "Clarisma Collection",
+      "created_at": "2026-09-03T09:56:06.083Z"
+    },
+    {
+      "id": 6,
+      "title": "Maximum Impact Bundle",
+      "description": "Includes the Intelligence Library and the Professional Toolkit at a curated price for total career transformation.",
+      "price": "99.00",
+      "image_url": "https://images.unsplash.com/photo-1512486130939-2c4f79935e4f?auto=format&fit=crop&q=80",
+      "download_url": "#",
+      "category": "Curated Experience Bundles",
+      "created_at": "2026-09-03T09:56:06.083Z"
+    }
+  ],
+  "reservations": []
+}

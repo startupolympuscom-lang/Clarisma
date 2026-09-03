@@ -188,10 +188,20 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
       const res = await fetch('/api/services');
       if (res.ok) {
         const data = await res.json();
-        const parsedServices = data.map((s: any) => ({
-          ...s,
-          items: typeof s.items === 'string' ? JSON.parse(s.items) : s.items
-        }));
+        const parsedServices = (data || []).map((s: any) => {
+          let items = s.items;
+          if (typeof items === 'string') {
+            try {
+              items = JSON.parse(items);
+            } catch {
+              items = [];
+            }
+          }
+          return {
+            ...s,
+            items: Array.isArray(items) ? items : []
+          };
+        });
         setServices(parsedServices);
       }
     } catch (err) {
@@ -263,15 +273,14 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
         setIsEditingService(null);
         setIsCreatingService(false);
         setEditServiceForm({});
-        fetchServices();
+        await fetchServices();
+        alert('Service saved successfully!');
       } else {
-        alert('Service updated');
-        setIsEditingService(null);
-        setIsCreatingService(false);
-        fetchServices();
+        alert('Failed to save service. Please try again.');
       }
     } catch (err) {
       console.error('Error saving service', err);
+      alert('Network error saving service');
     }
   };
 
@@ -289,9 +298,10 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
       });
 
       if (res.ok) {
-        fetchServices();
+        await fetchServices();
+        alert('Service deleted successfully');
       } else {
-        fetchServices();
+        await fetchServices();
       }
     } catch (err) {
       console.error('Error deleting service', err);
@@ -318,14 +328,14 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
         setIsEditingTestimonial(null);
         setIsCreatingTestimonial(false);
         setEditTestimonialForm({});
-        fetchTestimonials();
+        await fetchTestimonials();
+        alert('Testimonial saved successfully!');
       } else {
-        setIsEditingTestimonial(null);
-        setIsCreatingTestimonial(false);
-        fetchTestimonials();
+        alert('Failed to save testimonial. Please try again.');
       }
     } catch (err) {
       console.error('Error saving testimonial', err);
+      alert('Network error saving testimonial');
     }
   };
 
@@ -343,9 +353,10 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
       });
 
       if (res.ok) {
-        fetchTestimonials();
+        await fetchTestimonials();
+        alert('Testimonial deleted successfully');
       } else {
-        fetchTestimonials();
+        await fetchTestimonials();
       }
     } catch (err) {
       console.error('Error deleting testimonial', err);
@@ -376,14 +387,14 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
         setIsCreating(false);
         setEditForm({});
         setTagsInput('');
-        fetchRetreats();
+        await fetchRetreats();
+        alert('Retreat saved successfully!');
       } else {
-        setIsEditing(null);
-        setIsCreating(false);
-        fetchRetreats();
+        alert('Failed to save retreat. Please try again.');
       }
     } catch (err) {
       console.error('Error saving retreat', err);
+      alert('Network error saving retreat');
     }
   };
 
@@ -468,14 +479,14 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
         setIsEditingProduct(null);
         setIsCreatingProduct(false);
         setEditProductForm({});
-        fetchProducts();
+        await fetchProducts();
+        alert('Product saved successfully!');
       } else {
-        setIsEditingProduct(null);
-        setIsCreatingProduct(false);
-        fetchProducts();
+        alert('Failed to save product. Please try again.');
       }
     } catch (err) {
       console.error('Error saving product', err);
+      alert('Network error saving product');
     }
   };
 
@@ -493,9 +504,10 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
       });
 
       if (res.ok) {
-        fetchProducts();
+        await fetchProducts();
+        alert('Product deleted successfully');
       } else {
-        fetchProducts();
+        await fetchProducts();
       }
     } catch (err) {
       console.error('Error deleting product', err);

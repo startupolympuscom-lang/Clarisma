@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { cmsStore } from './cmsStore';
 
 dotenv.config();
 
@@ -565,11 +566,15 @@ app.get('/api/auth/verify', authenticateToken, async (req: any, res: any) => {
 // Get all retreats
 app.get('/api/retreats', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM retreats ORDER BY created_at DESC');
-    res.json(result.rows);
+    if (pool && !pool.isMock) {
+      const result = await pool.query('SELECT * FROM retreats ORDER BY created_at DESC');
+      if (result.rows && result.rows.length > 0) {
+        return res.json(result.rows);
+      }
+    }
+    res.json(cmsStore.getRetreats());
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.json(cmsStore.getRetreats());
   }
 });
 
@@ -577,11 +582,16 @@ app.get('/api/retreats', async (req, res) => {
 app.post('/api/retreats', requireAdmin, async (req, res) => {
   const { title, date, location, city, tags, description, image_url, price, signup_url, seats_available, agenda_url, payment_details, custom_form_schema } = req.body;
   try {
-    const result = await pool.query(
-      'INSERT INTO retreats (title, date, location, city, tags, description, image_url, price, signup_url, seats_available, agenda_url, payment_details, custom_form_schema) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *',
-      [title, date, location, city, JSON.stringify(tags || []), description, image_url, price, signup_url || '', seats_available || '', agenda_url || '', payment_details || '', custom_form_schema || '[]']
-    );
-    res.status(201).json(result.rows[0]);
+    const saved = cmsStore.createRetreat({
+      title, date, location, city, tags, description, image_url, price, signup_url, seats_available, agenda_url, payment_details, custom_form_schema
+    });
+    if (pool && !pool.isMock) {
+      await pool.query(
+        'INSERT INTO retreats (title, date, location, city, tags, description, image_url, price, signup_url, seats_available, agenda_url, payment_details, custom_form_schema) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)',
+        [title, date, location, city, JSON.stringify(tags || []), description, image_url, price, signup_url || '', seats_available || '', agenda_url || '', payment_details || '', custom_form_schema || '[]']
+      ).catch((e: any) => console.warn('DB sync error:', e));
+    }
+    res.status(201).json(saved);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -591,16 +601,22 @@ app.post('/api/retreats', requireAdmin, async (req, res) => {
 // Update a retreat
 app.put('/api/retreats/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
+  const numId = parseInt(id, 10);
   const { title, date, location, city, tags, description, image_url, price, signup_url, seats_available, agenda_url, payment_details, custom_form_schema } = req.body;
   try {
-    const result = await pool.query(
-      'UPDATE retreats SET title = $1, date = $2, location = $3, city = $4, tags = $5, description = $6, image_url = $7, price = $8, signup_url = $9, seats_available = $10, agenda_url = $11, payment_details = $12, custom_form_schema = $13 WHERE id = $14 RETURNING *',
-      [title, date, location, city, JSON.stringify(tags || []), description, image_url, price, signup_url || '', seats_available || '', agenda_url || '', payment_details || '', custom_form_schema || '[]', id]
-    );
-    if (result.rows.length === 0) {
+    const updated = cmsStore.updateRetreat(numId, {
+      title, date, location, city, tags, description, image_url, price, signup_url, seats_available, agenda_url, payment_details, custom_form_schema
+    });
+    if (pool && !pool.isMock) {
+      await pool.query(
+        'UPDATE retreats SET title = $1, date = $2, location = $3, city = $4, tags = $5, description = $6, image_url = $7, price = $8, signup_url = $9, seats_available = $10, agenda_url = $11, payment_details = $12, custom_form_schema = $13 WHERE id = $14',
+        [title, date, location, city, JSON.stringify(tags || []), description, image_url, price, signup_url || '', seats_available || '', agenda_url || '', payment_details || '', custom_form_schema || '[]', numId]
+      ).catch((e: any) => console.warn('DB sync error:', e));
+    }
+    if (!updated) {
       return res.status(404).json({ error: 'Retreat not found' });
     }
-    res.json(result.rows[0]);
+    res.json(updated);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -610,10 +626,11 @@ app.put('/api/retreats/:id', requireAdmin, async (req, res) => {
 // Delete a retreat
 app.delete('/api/retreats/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
+  const numId = parseInt(id, 10);
   try {
-    const result = await pool.query('DELETE FROM retreats WHERE id = $1 RETURNING *', [id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Retreat not found' });
+    cmsStore.deleteRetreat(numId);
+    if (pool && !pool.isMock) {
+      await pool.query('DELETE FROM retreats WHERE id = $1', [numId]).catch((e: any) => console.warn('DB sync error:', e));
     }
     res.json({ message: 'Retreat deleted successfully' });
   } catch (err) {
@@ -625,11 +642,15 @@ app.delete('/api/retreats/:id', requireAdmin, async (req, res) => {
 // Get all services
 app.get('/api/services', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM services ORDER BY order_index ASC, id ASC');
-    res.json(result.rows);
+    if (pool && !pool.isMock) {
+      const result = await pool.query('SELECT * FROM services ORDER BY order_index ASC, id ASC');
+      if (result.rows && result.rows.length > 0) {
+        return res.json(result.rows);
+      }
+    }
+    res.json(cmsStore.getServices());
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.json(cmsStore.getServices());
   }
 });
 
@@ -637,21 +658,26 @@ app.get('/api/services', async (req, res) => {
 app.post('/api/services', requireAdmin, async (req, res) => {
   const { title, badge, description, icon_name, items, link_text, link_url, color_theme, order_index } = req.body;
   try {
-    const result = await pool.query(
-      'INSERT INTO services (title, badge, description, icon_name, items, link_text, link_url, color_theme, order_index) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-      [
-        title,
-        badge || '',
-        description,
-        icon_name || 'User',
-        typeof items === 'string' ? items : JSON.stringify(items || []),
-        link_text || 'Book a Session',
-        link_url || '#',
-        color_theme || 'gold',
-        order_index || 0
-      ]
-    );
-    res.status(201).json(result.rows[0]);
+    const saved = cmsStore.createService({
+      title, badge, description, icon_name, items, link_text, link_url, color_theme, order_index
+    });
+    if (pool && !pool.isMock) {
+      await pool.query(
+        'INSERT INTO services (title, badge, description, icon_name, items, link_text, link_url, color_theme, order_index) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+        [
+          title,
+          badge || '',
+          description,
+          icon_name || 'User',
+          typeof items === 'string' ? items : JSON.stringify(items || []),
+          link_text || 'Book a Session',
+          link_url || '#',
+          color_theme || 'gold',
+          order_index || 0
+        ]
+      ).catch((e: any) => console.warn('DB sync error:', e));
+    }
+    res.status(201).json(saved);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -661,27 +687,33 @@ app.post('/api/services', requireAdmin, async (req, res) => {
 // Update a service
 app.put('/api/services/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
+  const numId = parseInt(id, 10);
   const { title, badge, description, icon_name, items, link_text, link_url, color_theme, order_index } = req.body;
   try {
-    const result = await pool.query(
-      'UPDATE services SET title = $1, badge = $2, description = $3, icon_name = $4, items = $5, link_text = $6, link_url = $7, color_theme = $8, order_index = $9 WHERE id = $10 RETURNING *',
-      [
-        title,
-        badge || '',
-        description,
-        icon_name || 'User',
-        typeof items === 'string' ? items : JSON.stringify(items || []),
-        link_text || 'Book a Session',
-        link_url || '#',
-        color_theme || 'gold',
-        order_index || 0,
-        id
-      ]
-    );
-    if (result.rows.length === 0) {
+    const updated = cmsStore.updateService(numId, {
+      title, badge, description, icon_name, items, link_text, link_url, color_theme, order_index
+    });
+    if (pool && !pool.isMock) {
+      await pool.query(
+        'UPDATE services SET title = $1, badge = $2, description = $3, icon_name = $4, items = $5, link_text = $6, link_url = $7, color_theme = $8, order_index = $9 WHERE id = $10',
+        [
+          title,
+          badge || '',
+          description,
+          icon_name || 'User',
+          typeof items === 'string' ? items : JSON.stringify(items || []),
+          link_text || 'Book a Session',
+          link_url || '#',
+          color_theme || 'gold',
+          order_index || 0,
+          numId
+        ]
+      ).catch((e: any) => console.warn('DB sync error:', e));
+    }
+    if (!updated) {
       return res.status(404).json({ error: 'Service not found' });
     }
-    res.json(result.rows[0]);
+    res.json(updated);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -691,10 +723,11 @@ app.put('/api/services/:id', requireAdmin, async (req, res) => {
 // Delete a service
 app.delete('/api/services/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
+  const numId = parseInt(id, 10);
   try {
-    const result = await pool.query('DELETE FROM services WHERE id = $1 RETURNING *', [id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Service not found' });
+    cmsStore.deleteService(numId);
+    if (pool && !pool.isMock) {
+      await pool.query('DELETE FROM services WHERE id = $1', [numId]).catch((e: any) => console.warn('DB sync error:', e));
     }
     res.json({ message: 'Service deleted successfully' });
   } catch (err) {
@@ -706,11 +739,15 @@ app.delete('/api/services/:id', requireAdmin, async (req, res) => {
 // Get all products
 app.get('/api/products', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM products ORDER BY created_at DESC');
-    res.json(result.rows);
+    if (pool && !pool.isMock) {
+      const result = await pool.query('SELECT * FROM products ORDER BY created_at DESC');
+      if (result.rows && result.rows.length > 0) {
+        return res.json(result.rows);
+      }
+    }
+    res.json(cmsStore.getProducts());
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.json(cmsStore.getProducts());
   }
 });
 
@@ -718,11 +755,16 @@ app.get('/api/products', async (req, res) => {
 app.post('/api/products', requireAdmin, async (req, res) => {
   const { title, description, price, image_url, download_url, category } = req.body;
   try {
-    const result = await pool.query(
-      'INSERT INTO products (title, description, price, image_url, download_url, category) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [title, description, price, image_url, download_url, category || 'Digital']
-    );
-    res.status(201).json(result.rows[0]);
+    const saved = cmsStore.createProduct({
+      title, description, price, image_url, download_url, category
+    });
+    if (pool && !pool.isMock) {
+      await pool.query(
+        'INSERT INTO products (title, description, price, image_url, download_url, category) VALUES ($1, $2, $3, $4, $5, $6)',
+        [title, description, price, image_url, download_url, category || 'Digital']
+      ).catch((e: any) => console.warn('DB sync error:', e));
+    }
+    res.status(201).json(saved);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -732,16 +774,22 @@ app.post('/api/products', requireAdmin, async (req, res) => {
 // Update a product
 app.put('/api/products/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
+  const numId = parseInt(id, 10);
   const { title, description, price, image_url, download_url, category } = req.body;
   try {
-    const result = await pool.query(
-      'UPDATE products SET title = $1, description = $2, price = $3, image_url = $4, download_url = $5, category = $6 WHERE id = $7 RETURNING *',
-      [title, description, price, image_url, download_url, category, id]
-    );
-    if (result.rows.length === 0) {
+    const updated = cmsStore.updateProduct(numId, {
+      title, description, price, image_url, download_url, category
+    });
+    if (pool && !pool.isMock) {
+      await pool.query(
+        'UPDATE products SET title = $1, description = $2, price = $3, image_url = $4, download_url = $5, category = $6 WHERE id = $7',
+        [title, description, price, image_url, download_url, category, numId]
+      ).catch((e: any) => console.warn('DB sync error:', e));
+    }
+    if (!updated) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    res.json(result.rows[0]);
+    res.json(updated);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -751,10 +799,11 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
 // Delete a product
 app.delete('/api/products/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
+  const numId = parseInt(id, 10);
   try {
-    const result = await pool.query('DELETE FROM products WHERE id = $1 RETURNING *', [id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Product not found' });
+    cmsStore.deleteProduct(numId);
+    if (pool && !pool.isMock) {
+      await pool.query('DELETE FROM products WHERE id = $1', [numId]).catch((e: any) => console.warn('DB sync error:', e));
     }
     res.json({ message: 'Product deleted successfully' });
   } catch (err) {
@@ -766,11 +815,15 @@ app.delete('/api/products/:id', requireAdmin, async (req, res) => {
 // Get all testimonials
 app.get('/api/testimonials', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM testimonials ORDER BY id ASC');
-    res.json(result.rows);
+    if (pool && !pool.isMock) {
+      const result = await pool.query('SELECT * FROM testimonials ORDER BY id ASC');
+      if (result.rows && result.rows.length > 0) {
+        return res.json(result.rows);
+      }
+    }
+    res.json(cmsStore.getTestimonials());
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.json(cmsStore.getTestimonials());
   }
 });
 
@@ -778,11 +831,14 @@ app.get('/api/testimonials', async (req, res) => {
 app.post('/api/testimonials', requireAdmin, async (req, res) => {
   const { quote, author, role, company } = req.body;
   try {
-    const result = await pool.query(
-      'INSERT INTO testimonials (quote, author, role, company) VALUES ($1, $2, $3, $4) RETURNING *',
-      [quote, author, role, company]
-    );
-    res.status(201).json(result.rows[0]);
+    const saved = cmsStore.createTestimonial({ quote, author, role, company });
+    if (pool && !pool.isMock) {
+      await pool.query(
+        'INSERT INTO testimonials (quote, author, role, company) VALUES ($1, $2, $3, $4)',
+        [quote, author, role, company]
+      ).catch((e: any) => console.warn('DB sync error:', e));
+    }
+    res.status(201).json(saved);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -792,16 +848,20 @@ app.post('/api/testimonials', requireAdmin, async (req, res) => {
 // Update a testimonial (admin only)
 app.put('/api/testimonials/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
+  const numId = parseInt(id, 10);
   const { quote, author, role, company } = req.body;
   try {
-    const result = await pool.query(
-      'UPDATE testimonials SET quote = $1, author = $2, role = $3, company = $4 WHERE id = $5 RETURNING *',
-      [quote, author, role, company, id]
-    );
-    if (result.rows.length === 0) {
+    const updated = cmsStore.updateTestimonial(numId, { quote, author, role, company });
+    if (pool && !pool.isMock) {
+      await pool.query(
+        'UPDATE testimonials SET quote = $1, author = $2, role = $3, company = $4 WHERE id = $5',
+        [quote, author, role, company, numId]
+      ).catch((e: any) => console.warn('DB sync error:', e));
+    }
+    if (!updated) {
       return res.status(404).json({ error: 'Testimonial not found' });
     }
-    res.json(result.rows[0]);
+    res.json(updated);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -811,10 +871,11 @@ app.put('/api/testimonials/:id', requireAdmin, async (req, res) => {
 // Delete a testimonial (admin only)
 app.delete('/api/testimonials/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
+  const numId = parseInt(id, 10);
   try {
-    const result = await pool.query('DELETE FROM testimonials WHERE id = $1 RETURNING *', [id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Testimonial not found' });
+    cmsStore.deleteTestimonial(numId);
+    if (pool && !pool.isMock) {
+      await pool.query('DELETE FROM testimonials WHERE id = $1', [numId]).catch((e: any) => console.warn('DB sync error:', e));
     }
     res.json({ message: 'Testimonial deleted successfully' });
   } catch (err) {
@@ -822,30 +883,6 @@ app.delete('/api/testimonials/:id', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-const defaultSettingsStore: Record<string, string> = {
-  hero_video_url: 'https://drive.google.com/file/d/1m8nUWm5US-8l63U0lolu0JZBK7OVmX0k/view?usp=sharing',
-  hero_title: 'OWN YOUR',
-  hero_title_italic: 'NARRATIVE.',
-  hero_desc: 'Empowering high-impact leaders to command their space with unshakeable clarity and authentic authority.',
-  about_badge: 'About Clarisma',
-  about_heading1: 'Clarify your charisma.',
-  about_heading2: 'Magnify your impact.',
-  about_body_p1: 'Clarisma is a personal and professional empowerment platform created by Professor Dr. Claris Harbon. We help professionals in different fields, disciplines and schools, and at any stage of their career, such as, but not exclusively limited to, law, to academia, and human rights, reclaim their confidence and chart intentional career paths.',
-  about_body_p2: 'Our mission is to fuse legal wisdom, storytelling, and leadership into a transformational journey that honors your expertise while empowering your next chapter.',
-  about_founder_name: 'Dr. Claris Harbon',
-  about_founder_title: 'Associate Professor in International Law and in Gender Studies.',
-  about_founder_image_url: 'https://aui.ma/hs-fs/hubfs/Faculty/Harbon%20Claris-1.jpg?width=385&height=385&name=Harbon%20Claris-1.jpg',
-  services_title_1: 'LEVEL UP',
-  services_title_2: 'YOUR',
-  services_title_highlight: 'IMPACT.',
-  services_desc: "Modern tools for the modern professional. We don't just coach; we catalyze your career trajectory with precision.",
-  methodology_badge: 'Our Methodology',
-  methodology_heading: 'A Blueprint for Professional Mastery',
-  methodology_desc: "We don't believe in one-size-fits-all. Our structured approach is designed to adapt to your unique challenges while maintaining a rigorous focus on results."
-};
-
-let inMemorySettings: Record<string, string> = { ...defaultSettingsStore };
 
 // Get settings handler
 const getSettingsHandler = async (req: express.Request, res: express.Response) => {
@@ -857,13 +894,12 @@ const getSettingsHandler = async (req: express.Request, res: express.Response) =
           acc[row.key] = row.value;
           return acc;
         }, {});
-        inMemorySettings = { ...inMemorySettings, ...dbSettings };
+        cmsStore.updateSettings(dbSettings);
       }
     }
-    res.json(inMemorySettings);
+    res.json(cmsStore.getSettings());
   } catch (err) {
-    // Return in-memory fallback
-    res.json(inMemorySettings);
+    res.json(cmsStore.getSettings());
   }
 };
 
@@ -883,7 +919,7 @@ const putSettingsHandler = async (req: express.Request, res: express.Response) =
       : (body && typeof body === 'object' ? body : {});
 
     if (incoming && Object.keys(incoming).length > 0) {
-      inMemorySettings = { ...inMemorySettings, ...incoming };
+      cmsStore.updateSettings(incoming);
       if (pool && !pool.isMock) {
         try {
           await pool.query(`CREATE TABLE IF NOT EXISTS settings (key VARCHAR(255) PRIMARY KEY, value TEXT NOT NULL);`);
@@ -895,14 +931,14 @@ const putSettingsHandler = async (req: express.Request, res: express.Response) =
             );
           }
         } catch (dbErr) {
-          console.warn('DB settings save error, stored in-memory:', dbErr);
+          console.warn('DB settings save error, stored in cmsStore:', dbErr);
         }
       }
     }
-    res.json({ message: 'Settings updated successfully', settings: inMemorySettings });
+    res.json({ message: 'Settings updated successfully', settings: cmsStore.getSettings() });
   } catch (err) {
     console.error('Save settings error:', err);
-    res.json({ message: 'Settings updated successfully', settings: inMemorySettings });
+    res.json({ message: 'Settings updated successfully', settings: cmsStore.getSettings() });
   }
 };
 
@@ -915,11 +951,16 @@ app.put('/settings', putSettingsHandler);
 app.post('/api/reservations', async (req, res) => {
   const { retreat_id, name, email, phone, message, answers } = req.body;
   try {
-    const result = await pool.query(
-      'INSERT INTO retreat_reservations (retreat_id, name, email, phone, message, answers) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [retreat_id, name, email, phone || '', message || '', answers || '{}']
-    );
-    res.status(201).json(result.rows[0]);
+    const saved = cmsStore.createReservation({
+      retreat_id, name, email, phone, message, answers
+    });
+    if (pool && !pool.isMock) {
+      await pool.query(
+        'INSERT INTO retreat_reservations (retreat_id, name, email, phone, message, answers) VALUES ($1, $2, $3, $4, $5, $6)',
+        [retreat_id, name, email, phone || '', message || '', typeof answers === 'string' ? answers : JSON.stringify(answers || {})]
+      ).catch((e: any) => console.warn('DB sync error:', e));
+    }
+    res.status(201).json(saved);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -929,32 +970,40 @@ app.post('/api/reservations', async (req, res) => {
 // Get all reservations (admin only)
 app.get('/api/reservations', requireAdmin, async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT r.*, ret.title as retreat_title 
-      FROM retreat_reservations r 
-      JOIN retreats ret ON r.retreat_id = ret.id 
-      ORDER BY r.created_at DESC
-    `);
-    res.json(result.rows);
+    if (pool && !pool.isMock) {
+      const result = await pool.query(`
+        SELECT r.*, ret.title as retreat_title 
+        FROM retreat_reservations r 
+        JOIN retreats ret ON r.retreat_id = ret.id 
+        ORDER BY r.created_at DESC
+      `);
+      if (result.rows && result.rows.length > 0) {
+        return res.json(result.rows);
+      }
+    }
+    res.json(cmsStore.getReservations());
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.json(cmsStore.getReservations());
   }
 });
 
 // Update reservation status (admin only)
 app.put('/api/reservations/:id/status', requireAdmin, async (req, res) => {
   const { id } = req.params;
+  const numId = parseInt(id, 10);
   const { status } = req.body;
   try {
-    const result = await pool.query(
-      'UPDATE retreat_reservations SET status = $1 WHERE id = $2 RETURNING *',
-      [status, id]
-    );
-    if (result.rows.length === 0) {
+    const updated = cmsStore.updateReservationStatus(numId, status);
+    if (pool && !pool.isMock) {
+      await pool.query(
+        'UPDATE retreat_reservations SET status = $1 WHERE id = $2',
+        [status, numId]
+      ).catch((e: any) => console.warn('DB sync error:', e));
+    }
+    if (!updated) {
       return res.status(404).json({ error: 'Reservation not found' });
     }
-    res.json(result.rows[0]);
+    res.json(updated);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

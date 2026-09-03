@@ -1,5 +1,8 @@
 {
   "name": "Clarisma Official V2 Off",
   "description": "A high-energy, youthful professional redesign of the Clarisma platform using Bento grids, glassmorphism, and modern coaching tools.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
