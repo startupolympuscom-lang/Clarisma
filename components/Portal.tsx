@@ -115,10 +115,20 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
       const res = await fetch('/api/retreats');
       if (res.ok) {
         const data = await res.json();
-        const parsedData = data.map((r: any) => ({
-          ...r,
-          tags: typeof r.tags === 'string' ? JSON.parse(r.tags) : r.tags
-        }));
+        const parsedData = (data || []).map((r: any) => {
+          let tags = r.tags;
+          if (typeof tags === 'string') {
+            try {
+              tags = JSON.parse(tags);
+            } catch {
+              tags = tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+            }
+          }
+          return {
+            ...r,
+            tags: Array.isArray(tags) ? tags : []
+          };
+        });
         setRetreats(parsedData);
       }
     } catch (err) {
@@ -252,12 +262,15 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
     const token = localStorage.getItem('authToken') || 'admin-bypass-token';
 
     try {
-      const url = isEditingService ? `/api/services/${isEditingService}` : '/api/services';
-      const method = isEditingService ? 'PUT' : 'POST';
+      const isNew = isCreatingService || !isEditingService;
+      const url = isNew ? '/api/services' : `/api/services/${isEditingService}`;
+      const method = isNew ? 'POST' : 'PUT';
 
       const payload = {
         ...editServiceForm,
-        items: JSON.stringify(editServiceForm.items || [])
+        items: typeof editServiceForm.items === 'string'
+          ? editServiceForm.items
+          : JSON.stringify(editServiceForm.items || [])
       };
 
       const res = await fetch(url, {
@@ -276,11 +289,13 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
         await fetchServices();
         alert('Service saved successfully!');
       } else {
-        alert('Failed to save service. Please try again.');
+        const errJson = await res.json().catch(() => null);
+        console.error('Save service failed:', res.status, errJson);
+        alert(`Failed to save service: ${errJson?.error || res.statusText || `HTTP ${res.status}`}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving service', err);
-      alert('Network error saving service');
+      alert(`Network error saving service: ${err?.message || 'Check connection'}`);
     }
   };
 
@@ -312,8 +327,9 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
     const token = localStorage.getItem('authToken') || 'admin-bypass-token';
 
     try {
-      const url = isEditingTestimonial ? `/api/testimonials/${isEditingTestimonial}` : '/api/testimonials';
-      const method = isEditingTestimonial ? 'PUT' : 'POST';
+      const isNew = isCreatingTestimonial || !isEditingTestimonial;
+      const url = isNew ? '/api/testimonials' : `/api/testimonials/${isEditingTestimonial}`;
+      const method = isNew ? 'POST' : 'PUT';
 
       const res = await fetch(url, {
         method,
@@ -331,11 +347,13 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
         await fetchTestimonials();
         alert('Testimonial saved successfully!');
       } else {
-        alert('Failed to save testimonial. Please try again.');
+        const errJson = await res.json().catch(() => null);
+        console.error('Save testimonial failed:', res.status, errJson);
+        alert(`Failed to save testimonial: ${errJson?.error || res.statusText || `HTTP ${res.status}`}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving testimonial', err);
-      alert('Network error saving testimonial');
+      alert(`Network error saving testimonial: ${err?.message || 'Check connection'}`);
     }
   };
 
@@ -367,10 +385,11 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
     const token = localStorage.getItem('authToken') || 'admin-bypass-token';
 
     try {
-      const url = isEditing ? `/api/retreats/${isEditing}` : '/api/retreats';
-      const method = isEditing ? 'PUT' : 'POST';
+      const isNew = isCreating || !isEditing;
+      const url = isNew ? '/api/retreats' : `/api/retreats/${isEditing}`;
+      const method = isNew ? 'POST' : 'PUT';
 
-      const tags = tagsInput.split(',').map(t => t.trim()).filter(t => t);
+      const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
       const payload = { ...editForm, tags, custom_form_schema: JSON.stringify(customFields) };
 
       const res = await fetch(url, {
@@ -390,11 +409,13 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
         await fetchRetreats();
         alert('Retreat saved successfully!');
       } else {
-        alert('Failed to save retreat. Please try again.');
+        const errJson = await res.json().catch(() => null);
+        console.error('Save retreat failed:', res.status, errJson);
+        alert(`Failed to save retreat: ${errJson?.error || res.statusText || `HTTP ${res.status}`}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving retreat', err);
-      alert('Network error saving retreat');
+      alert(`Network error saving retreat: ${err?.message || 'Check connection'}`);
     }
   };
 
@@ -463,8 +484,9 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
     const token = localStorage.getItem('authToken') || 'admin-bypass-token';
 
     try {
-      const url = isEditingProduct ? `/api/products/${isEditingProduct}` : '/api/products';
-      const method = isEditingProduct ? 'PUT' : 'POST';
+      const isNew = isCreatingProduct || !isEditingProduct;
+      const url = isNew ? '/api/products' : `/api/products/${isEditingProduct}`;
+      const method = isNew ? 'POST' : 'PUT';
 
       const res = await fetch(url, {
         method,
@@ -482,11 +504,13 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
         await fetchProducts();
         alert('Product saved successfully!');
       } else {
-        alert('Failed to save product. Please try again.');
+        const errJson = await res.json().catch(() => null);
+        console.error('Save product failed:', res.status, errJson);
+        alert(`Failed to save product: ${errJson?.error || res.statusText || `HTTP ${res.status}`}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving product', err);
-      alert('Network error saving product');
+      alert(`Network error saving product: ${err?.message || 'Check connection'}`);
     }
   };
 
@@ -942,6 +966,7 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
                   <button
                     onClick={() => {
                       setIsCreatingTestimonial(true);
+                      setIsEditingTestimonial(null);
                       setEditTestimonialForm({ quote: '', author: '', role: '', company: '' });
                     }}
                     className="bg-clarisma-gold text-black px-6 py-2 rounded-xl font-bold hover:bg-white transition-colors flex items-center gap-2"
@@ -1181,6 +1206,7 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
                 <button 
                   onClick={() => {
                     setIsCreatingProduct(true);
+                    setIsEditingProduct(null);
                     setEditProductForm({
                       title: '',
                       description: '',
@@ -1344,6 +1370,7 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
                 <button 
                   onClick={() => {
                     setIsCreatingService(true);
+                    setIsEditingService(null);
                     setEditServiceForm({
                       title: '',
                       badge: '',
@@ -1548,12 +1575,21 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
                       <div className="bg-black/30 p-3 rounded-xl border border-white/5 mb-4">
                         <p className="text-xs font-bold text-slate-400 mb-2 uppercase">Highlights:</p>
                         <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
-                          {((typeof service.items === 'string' ? JSON.parse(service.items || '[]') : service.items) || []).map((feat: any, i: number) => (
-                            <div key={i} className="flex items-center gap-1.5 truncate">
-                              <span className="text-clarisma-gold font-bold">✓</span>
-                              <span className="truncate">{feat.title || 'Untitled Highlight'}</span>
-                            </div>
-                          ))}
+                          {(() => {
+                            let feats = [];
+                            try {
+                              feats = typeof service.items === 'string' ? JSON.parse(service.items || '[]') : service.items;
+                              if (!Array.isArray(feats)) feats = [];
+                            } catch {
+                              feats = [];
+                            }
+                            return feats.map((feat: any, i: number) => (
+                              <div key={i} className="flex items-center gap-1.5 truncate">
+                                <span className="text-clarisma-gold font-bold">✓</span>
+                                <span className="truncate">{feat.title || 'Untitled Highlight'}</span>
+                              </div>
+                            ));
+                          })()}
                         </div>
                       </div>
                     )}
@@ -1565,9 +1601,18 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
                       <button
                         onClick={() => {
                           setIsEditingService(service.id);
+                          let parsedItems = [];
+                          if (service.items) {
+                            try {
+                              parsedItems = typeof service.items === 'string' ? JSON.parse(service.items) : service.items;
+                              if (!Array.isArray(parsedItems)) parsedItems = [];
+                            } catch {
+                              parsedItems = [];
+                            }
+                          }
                           setEditServiceForm({
                             ...service,
-                            items: typeof service.items === 'string' ? JSON.parse(service.items) : service.items
+                            items: parsedItems
                           });
                           setIsCreatingService(false);
                         }}
@@ -1602,6 +1647,7 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
                 <button 
                   onClick={() => {
                     setIsCreating(true);
+                    setIsEditing(null);
                     setEditForm({
                       title: '',
                       date: '',
@@ -1856,7 +1902,18 @@ const Portal: React.FC<PortalProps> = ({ onBack, onUnauthorized }) => {
                       setIsEditing(retreat.id);
                       setEditForm(retreat);
                       setTagsInput((retreat.tags || []).join(', '));
-                      setCustomFields(retreat.custom_form_schema ? JSON.parse(retreat.custom_form_schema) : []);
+                      let schemaFields: FormField[] = [];
+                      if (retreat.custom_form_schema) {
+                        try {
+                          schemaFields = typeof retreat.custom_form_schema === 'string'
+                            ? JSON.parse(retreat.custom_form_schema)
+                            : retreat.custom_form_schema;
+                          if (!Array.isArray(schemaFields)) schemaFields = [];
+                        } catch {
+                          schemaFields = [];
+                        }
+                      }
+                      setCustomFields(schemaFields);
                       setIsCreating(false);
                       window.scrollTo(0, 0);
                     }}

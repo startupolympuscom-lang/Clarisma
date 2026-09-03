@@ -161,7 +161,16 @@ const ServicesBento: React.FC<ServicesBentoProps> = ({ onNavigate }) => {
         {services.map((service, index) => {
           const colSpan = getColSpan(index);
           const styles = getThemeStyles(service.color_theme);
-          const parsedItems = typeof service.items === 'string' ? JSON.parse(service.items || '[]') : (service.items || []);
+          let parsedItems = [];
+          if (typeof service.items === 'string') {
+            try {
+              parsedItems = JSON.parse(service.items || '[]');
+            } catch {
+              parsedItems = [];
+            }
+          } else if (Array.isArray(service.items)) {
+            parsedItems = service.items;
+          }
           const isSpan7 = colSpan === 7;
 
           return (

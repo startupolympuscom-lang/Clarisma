@@ -72,6 +72,66 @@ export interface Reservation {
   created_at?: string;
 }
 
+export interface UserRecord {
+  id: number;
+  email: string;
+  password_hash: string;
+  name: string;
+  role: 'admin' | 'client';
+  created_at: string;
+}
+
+export interface TaskRecord {
+  id: number;
+  title: string;
+  description: string;
+  assignee_id: number;
+  assignee_name?: string;
+  created_by: number;
+  created_by_name?: string;
+  due_date: string;
+  status: 'todo' | 'in_progress' | 'done';
+  created_at: string;
+}
+
+export interface TaskCommentRecord {
+  id: number;
+  task_id: number;
+  author_id: number;
+  author_name?: string;
+  author_role?: string;
+  body: string;
+  created_at: string;
+}
+
+export interface MaterialRecord {
+  id: number;
+  title: string;
+  description: string;
+  file_name: string;
+  file_mime: string;
+  file_data?: string; // base64
+  created_by?: number;
+  created_at: string;
+  assigned_client_ids: number[];
+}
+
+export interface SubmissionRecord {
+  id: number;
+  client_id: number;
+  client_name?: string;
+  client_email?: string;
+  material_id: number | null;
+  material_title?: string | null;
+  file_name: string;
+  file_mime: string;
+  file_data?: string; // base64
+  status: 'pending' | 'approved' | 'rejected';
+  feedback: string;
+  submitted_at: string;
+  reviewed_at: string | null;
+}
+
 export interface CmsData {
   settings: Record<string, string>;
   services: Service[];
@@ -79,10 +139,16 @@ export interface CmsData {
   retreats: Retreat[];
   products: Product[];
   reservations: Reservation[];
+  users: UserRecord[];
+  tasks: TaskRecord[];
+  task_comments: TaskCommentRecord[];
+  materials: MaterialRecord[];
+  submissions: SubmissionRecord[];
 }
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'cms_data.json');
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 
 const defaultData: CmsData = {
   settings: {
@@ -260,7 +326,54 @@ const defaultData: CmsData = {
       created_at: new Date().toISOString()
     }
   ],
-  reservations: []
+  reservations: [],
+  users: [
+    {
+      id: 1,
+      email: 'admin@clarisma.com',
+      password_hash: '',
+      name: 'Dr. Claris Harbon',
+      role: 'admin',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 2,
+      email: 'sarah.client@clarisma.com',
+      password_hash: '',
+      name: 'Sarah Benali',
+      role: 'client',
+      created_at: new Date().toISOString()
+    }
+  ],
+  tasks: [
+    {
+      id: 1,
+      title: 'Review submitted strengths assessment',
+      description: 'Analyze executive presence and provide detailed narrative feedback.',
+      assignee_id: 1,
+      assignee_name: 'Dr. Claris Harbon',
+      created_by: 1,
+      created_by_name: 'Dr. Claris Harbon',
+      due_date: '2026-10-15',
+      status: 'in_progress',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 2,
+      title: 'Complete Narrative Sovereignty Workbook',
+      description: 'Work through modules 1 and 2 before the upcoming 1-on-1 coaching session.',
+      assignee_id: 2,
+      assignee_name: 'Sarah Benali',
+      created_by: 1,
+      created_by_name: 'Dr. Claris Harbon',
+      due_date: '2026-10-20',
+      status: 'todo',
+      created_at: new Date().toISOString()
+    }
+  ],
+  task_comments: [],
+  materials: [],
+  submissions: []
 };
 
 class CmsStoreManager {
@@ -275,17 +388,24 @@ class CmsStoreManager {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
+      if (!fs.existsSync(UPLOADS_DIR)) {
+        fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+      }
       if (fs.existsSync(DATA_FILE)) {
         const fileContent = fs.readFileSync(DATA_FILE, 'utf-8');
         const parsed = JSON.parse(fileContent);
-        // Merge with defaults in case new fields exist
         return {
           settings: { ...defaultData.settings, ...(parsed.settings || {}) },
-          services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultData.services,
-          testimonials: Array.isArray(parsed.testimonials) && parsed.testimonials.length > 0 ? parsed.testimonials : defaultData.testimonials,
-          retreats: Array.isArray(parsed.retreats) && parsed.retreats.length > 0 ? parsed.retreats : defaultData.retreats,
-          products: Array.isArray(parsed.products) && parsed.products.length > 0 ? parsed.products : defaultData.products,
-          reservations: Array.isArray(parsed.reservations) ? parsed.reservations : []
+          services: Array.isArray(parsed.services) ? parsed.services : defaultData.services,
+          testimonials: Array.isArray(parsed.testimonials) ? parsed.testimonials : defaultData.testimonials,
+          retreats: Array.isArray(parsed.retreats) ? parsed.retreats : defaultData.retreats,
+          products: Array.isArray(parsed.products) ? parsed.products : defaultData.products,
+          reservations: Array.isArray(parsed.reservations) ? parsed.reservations : [],
+          users: Array.isArray(parsed.users) && parsed.users.length > 0 ? parsed.users : defaultData.users,
+          tasks: Array.isArray(parsed.tasks) ? parsed.tasks : defaultData.tasks,
+          task_comments: Array.isArray(parsed.task_comments) ? parsed.task_comments : [],
+          materials: Array.isArray(parsed.materials) ? parsed.materials : [],
+          submissions: Array.isArray(parsed.submissions) ? parsed.submissions : []
         };
       }
     } catch (e) {
@@ -327,13 +447,15 @@ class CmsStoreManager {
   }
 
   public getServiceById(id: number): Service | null {
-    return this.data.services.find(s => s.id === id) || null;
+    return this.data.services.find(s => Number(s.id) === Number(id) || String(s.id) === String(id)) || null;
   }
 
   public createService(input: Partial<Service>): Service {
-    const nextId = this.data.services.length > 0
-      ? Math.max(...this.data.services.map(s => s.id)) + 1
-      : 1;
+    const nextId = input.id && typeof input.id === 'number' && !this.data.services.some(s => s.id === input.id)
+      ? input.id
+      : (this.data.services.length > 0
+        ? Math.max(...this.data.services.map(s => Number(s.id) || 0)) + 1
+        : 1);
 
     const newService: Service = {
       id: nextId,
@@ -354,9 +476,11 @@ class CmsStoreManager {
     return newService;
   }
 
-  public updateService(id: number, input: Partial<Service>): Service | null {
-    const idx = this.data.services.findIndex(s => s.id === id);
-    if (idx === -1) return null;
+  public updateService(id: number, input: Partial<Service>): Service {
+    const idx = this.data.services.findIndex(s => Number(s.id) === Number(id) || String(s.id) === String(id));
+    if (idx === -1) {
+      return this.createService({ ...input, id: Number(id) || undefined });
+    }
 
     const current = this.data.services[idx];
     const updated: Service = {
@@ -379,7 +503,7 @@ class CmsStoreManager {
 
   public deleteService(id: number): boolean {
     const initialLen = this.data.services.length;
-    this.data.services = this.data.services.filter(s => s.id !== id);
+    this.data.services = this.data.services.filter(s => Number(s.id) !== Number(id) && String(s.id) !== String(id));
     if (this.data.services.length !== initialLen) {
       this.saveData(this.data);
       return true;
@@ -393,9 +517,11 @@ class CmsStoreManager {
   }
 
   public createTestimonial(input: Partial<Testimonial>): Testimonial {
-    const nextId = this.data.testimonials.length > 0
-      ? Math.max(...this.data.testimonials.map(t => t.id)) + 1
-      : 1;
+    const nextId = input.id && typeof input.id === 'number' && !this.data.testimonials.some(t => t.id === input.id)
+      ? input.id
+      : (this.data.testimonials.length > 0
+        ? Math.max(...this.data.testimonials.map(t => Number(t.id) || 0)) + 1
+        : 1);
 
     const newTestimonial: Testimonial = {
       id: nextId,
@@ -411,9 +537,11 @@ class CmsStoreManager {
     return newTestimonial;
   }
 
-  public updateTestimonial(id: number, input: Partial<Testimonial>): Testimonial | null {
-    const idx = this.data.testimonials.findIndex(t => t.id === id);
-    if (idx === -1) return null;
+  public updateTestimonial(id: number, input: Partial<Testimonial>): Testimonial {
+    const idx = this.data.testimonials.findIndex(t => Number(t.id) === Number(id) || String(t.id) === String(id));
+    if (idx === -1) {
+      return this.createTestimonial({ ...input, id: Number(id) || undefined });
+    }
 
     const current = this.data.testimonials[idx];
     const updated: Testimonial = {
@@ -431,7 +559,7 @@ class CmsStoreManager {
 
   public deleteTestimonial(id: number): boolean {
     const initialLen = this.data.testimonials.length;
-    this.data.testimonials = this.data.testimonials.filter(t => t.id !== id);
+    this.data.testimonials = this.data.testimonials.filter(t => Number(t.id) !== Number(id) && String(t.id) !== String(id));
     if (this.data.testimonials.length !== initialLen) {
       this.saveData(this.data);
       return true;
@@ -445,13 +573,15 @@ class CmsStoreManager {
   }
 
   public getRetreatById(id: number): Retreat | null {
-    return this.data.retreats.find(r => r.id === id) || null;
+    return this.data.retreats.find(r => Number(r.id) === Number(id) || String(r.id) === String(id)) || null;
   }
 
   public createRetreat(input: Partial<Retreat>): Retreat {
-    const nextId = this.data.retreats.length > 0
-      ? Math.max(...this.data.retreats.map(r => r.id)) + 1
-      : 1;
+    const nextId = input.id && typeof input.id === 'number' && !this.data.retreats.some(r => r.id === input.id)
+      ? input.id
+      : (this.data.retreats.length > 0
+        ? Math.max(...this.data.retreats.map(r => Number(r.id) || 0)) + 1
+        : 1);
 
     const newRetreat: Retreat = {
       id: nextId,
@@ -476,9 +606,11 @@ class CmsStoreManager {
     return newRetreat;
   }
 
-  public updateRetreat(id: number, input: Partial<Retreat>): Retreat | null {
-    const idx = this.data.retreats.findIndex(r => r.id === id);
-    if (idx === -1) return null;
+  public updateRetreat(id: number, input: Partial<Retreat>): Retreat {
+    const idx = this.data.retreats.findIndex(r => Number(r.id) === Number(id) || String(r.id) === String(id));
+    if (idx === -1) {
+      return this.createRetreat({ ...input, id: Number(id) || undefined });
+    }
 
     const current = this.data.retreats[idx];
     const updated: Retreat = {
@@ -505,7 +637,7 @@ class CmsStoreManager {
 
   public deleteRetreat(id: number): boolean {
     const initialLen = this.data.retreats.length;
-    this.data.retreats = this.data.retreats.filter(r => r.id !== id);
+    this.data.retreats = this.data.retreats.filter(r => Number(r.id) !== Number(id) && String(r.id) !== String(id));
     if (this.data.retreats.length !== initialLen) {
       this.saveData(this.data);
       return true;
@@ -519,9 +651,11 @@ class CmsStoreManager {
   }
 
   public createProduct(input: Partial<Product>): Product {
-    const nextId = this.data.products.length > 0
-      ? Math.max(...this.data.products.map(p => p.id)) + 1
-      : 1;
+    const nextId = input.id && typeof input.id === 'number' && !this.data.products.some(p => p.id === input.id)
+      ? input.id
+      : (this.data.products.length > 0
+        ? Math.max(...this.data.products.map(p => Number(p.id) || 0)) + 1
+        : 1);
 
     const newProduct: Product = {
       id: nextId,
@@ -539,9 +673,11 @@ class CmsStoreManager {
     return newProduct;
   }
 
-  public updateProduct(id: number, input: Partial<Product>): Product | null {
-    const idx = this.data.products.findIndex(p => p.id === id);
-    if (idx === -1) return null;
+  public updateProduct(id: number, input: Partial<Product>): Product {
+    const idx = this.data.products.findIndex(p => Number(p.id) === Number(id) || String(p.id) === String(id));
+    if (idx === -1) {
+      return this.createProduct({ ...input, id: Number(id) || undefined });
+    }
 
     const current = this.data.products[idx];
     const updated: Product = {
@@ -561,7 +697,7 @@ class CmsStoreManager {
 
   public deleteProduct(id: number): boolean {
     const initialLen = this.data.products.length;
-    this.data.products = this.data.products.filter(p => p.id !== id);
+    this.data.products = this.data.products.filter(p => Number(p.id) !== Number(id) && String(p.id) !== String(id));
     if (this.data.products.length !== initialLen) {
       this.saveData(this.data);
       return true;
@@ -606,6 +742,302 @@ class CmsStoreManager {
     this.data.reservations[idx].status = status;
     this.saveData(this.data);
     return this.data.reservations[idx];
+  }
+
+  // --- Users / Clients ---
+  public getUsers(): UserRecord[] {
+    return [...this.data.users];
+  }
+
+  public getClients(): { id: number; email: string; name: string; created_at: string }[] {
+    return this.data.users
+      .filter(u => u.role === 'client')
+      .map(u => ({ id: u.id, email: u.email, name: u.name, created_at: u.created_at }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  public getUserById(id: number): UserRecord | null {
+    return this.data.users.find(u => Number(u.id) === Number(id)) || null;
+  }
+
+  public getUserByEmail(email: string): UserRecord | null {
+    return this.data.users.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+  }
+
+  public createUser(input: Partial<UserRecord>): UserRecord {
+    const nextId = this.data.users.length > 0
+      ? Math.max(...this.data.users.map(u => u.id)) + 1
+      : 1;
+
+    const newUser: UserRecord = {
+      id: nextId,
+      email: (input.email || '').trim().toLowerCase(),
+      password_hash: input.password_hash || '',
+      name: input.name || 'User',
+      role: input.role === 'admin' ? 'admin' : 'client',
+      created_at: new Date().toISOString()
+    };
+
+    this.data.users.push(newUser);
+    this.saveData(this.data);
+    return newUser;
+  }
+
+  // --- Tasks (Kanban) ---
+  public getTasks(userId?: number, role?: string): TaskRecord[] {
+    let list = [...this.data.tasks];
+    if (role !== 'admin' && userId) {
+      list = list.filter(t => t.assignee_id === userId);
+    }
+    // Enrich with names
+    return list.map(t => {
+      const assignee = this.getUserById(t.assignee_id);
+      const creator = this.getUserById(t.created_by);
+      return {
+        ...t,
+        assignee_name: assignee ? assignee.name : t.assignee_name || 'Unassigned',
+        created_by_name: creator ? creator.name : t.created_by_name || 'Admin'
+      };
+    }).sort((a, b) => b.id - a.id);
+  }
+
+  public getTaskById(id: number): TaskRecord | null {
+    const t = this.data.tasks.find(x => x.id === id);
+    if (!t) return null;
+    const assignee = this.getUserById(t.assignee_id);
+    const creator = this.getUserById(t.created_by);
+    return {
+      ...t,
+      assignee_name: assignee ? assignee.name : t.assignee_name || 'Unassigned',
+      created_by_name: creator ? creator.name : t.created_by_name || 'Admin'
+    };
+  }
+
+  public createTask(input: Partial<TaskRecord>): TaskRecord {
+    const nextId = this.data.tasks.length > 0
+      ? Math.max(...this.data.tasks.map(t => t.id)) + 1
+      : 1;
+
+    const assignee = input.assignee_id ? this.getUserById(input.assignee_id) : null;
+    const creator = input.created_by ? this.getUserById(input.created_by) : null;
+
+    const newTask: TaskRecord = {
+      id: nextId,
+      title: input.title || 'New Task',
+      description: input.description || '',
+      assignee_id: input.assignee_id || 1,
+      assignee_name: assignee ? assignee.name : 'Dr. Claris Harbon',
+      created_by: input.created_by || 1,
+      created_by_name: creator ? creator.name : 'Dr. Claris Harbon',
+      due_date: input.due_date || '',
+      status: (input.status as any) || 'todo',
+      created_at: new Date().toISOString()
+    };
+
+    this.data.tasks.push(newTask);
+    this.saveData(this.data);
+    return newTask;
+  }
+
+  public updateTask(id: number, input: Partial<TaskRecord>): TaskRecord | null {
+    const idx = this.data.tasks.findIndex(t => t.id === id);
+    if (idx === -1) return null;
+
+    const current = this.data.tasks[idx];
+    const assignee = input.assignee_id ? this.getUserById(input.assignee_id) : (current.assignee_id ? this.getUserById(current.assignee_id) : null);
+
+    const updated: TaskRecord = {
+      ...current,
+      title: input.title ?? current.title,
+      description: input.description ?? current.description,
+      assignee_id: input.assignee_id ?? current.assignee_id,
+      assignee_name: assignee ? assignee.name : current.assignee_name,
+      due_date: input.due_date ?? current.due_date,
+      status: (input.status as any) ?? current.status
+    };
+
+    this.data.tasks[idx] = updated;
+    this.saveData(this.data);
+    return updated;
+  }
+
+  public deleteTask(id: number): boolean {
+    const initialLen = this.data.tasks.length;
+    this.data.tasks = this.data.tasks.filter(t => t.id !== id);
+    this.data.task_comments = this.data.task_comments.filter(c => c.task_id !== id);
+    if (this.data.tasks.length !== initialLen) {
+      this.saveData(this.data);
+      return true;
+    }
+    return false;
+  }
+
+  // --- Task Comments ---
+  public getTaskComments(taskId: number): TaskCommentRecord[] {
+    return this.data.task_comments
+      .filter(c => c.task_id === taskId)
+      .map(c => {
+        const author = this.getUserById(c.author_id);
+        return {
+          ...c,
+          author_name: author ? author.name : c.author_name || 'User',
+          author_role: author ? author.role : c.author_role || 'user'
+        };
+      })
+      .sort((a, b) => a.id - b.id);
+  }
+
+  public createTaskComment(input: Partial<TaskCommentRecord>): TaskCommentRecord {
+    const nextId = this.data.task_comments.length > 0
+      ? Math.max(...this.data.task_comments.map(c => c.id)) + 1
+      : 1;
+
+    const author = input.author_id ? this.getUserById(input.author_id) : null;
+
+    const newComment: TaskCommentRecord = {
+      id: nextId,
+      task_id: Number(input.task_id),
+      author_id: Number(input.author_id) || 1,
+      author_name: author ? author.name : 'Dr. Claris Harbon',
+      author_role: author ? author.role : 'admin',
+      body: input.body || '',
+      created_at: new Date().toISOString()
+    };
+
+    this.data.task_comments.push(newComment);
+    this.saveData(this.data);
+    return newComment;
+  }
+
+  // --- Materials (LMS) ---
+  public getMaterials(userId?: number, role?: string): MaterialRecord[] {
+    let list = [...this.data.materials];
+    if (role !== 'admin' && userId) {
+      list = list.filter(m => Array.isArray(m.assigned_client_ids) && m.assigned_client_ids.includes(userId));
+    }
+    return list.sort((a, b) => b.id - a.id);
+  }
+
+  public getMaterialById(id: number): MaterialRecord | null {
+    return this.data.materials.find(m => m.id === id) || null;
+  }
+
+  public createMaterial(input: Partial<MaterialRecord>, clientIds?: number[]): MaterialRecord {
+    const nextId = this.data.materials.length > 0
+      ? Math.max(...this.data.materials.map(m => m.id)) + 1
+      : 1;
+
+    const newMaterial: MaterialRecord = {
+      id: nextId,
+      title: input.title || 'Untitled Material',
+      description: input.description || '',
+      file_name: input.file_name || 'document.pdf',
+      file_mime: input.file_mime || 'application/pdf',
+      file_data: input.file_data || '',
+      created_by: input.created_by || 1,
+      created_at: new Date().toISOString(),
+      assigned_client_ids: Array.isArray(clientIds) ? clientIds : (input.assigned_client_ids || [])
+    };
+
+    this.data.materials.push(newMaterial);
+    this.saveData(this.data);
+    return newMaterial;
+  }
+
+  public updateMaterial(id: number, input: Partial<MaterialRecord>): MaterialRecord | null {
+    const idx = this.data.materials.findIndex(m => m.id === id);
+    if (idx === -1) return null;
+
+    this.data.materials[idx] = {
+      ...this.data.materials[idx],
+      title: input.title ?? this.data.materials[idx].title,
+      description: input.description ?? this.data.materials[idx].description,
+      assigned_client_ids: input.assigned_client_ids ?? this.data.materials[idx].assigned_client_ids
+    };
+
+    this.saveData(this.data);
+    return this.data.materials[idx];
+  }
+
+  public assignMaterial(id: number, clientIds: number[]): boolean {
+    const idx = this.data.materials.findIndex(m => m.id === id);
+    if (idx === -1) return false;
+    this.data.materials[idx].assigned_client_ids = clientIds;
+    this.saveData(this.data);
+    return true;
+  }
+
+  public deleteMaterial(id: number): boolean {
+    const initialLen = this.data.materials.length;
+    this.data.materials = this.data.materials.filter(m => m.id !== id);
+    if (this.data.materials.length !== initialLen) {
+      this.saveData(this.data);
+      return true;
+    }
+    return false;
+  }
+
+  // --- Submissions (LMS) ---
+  public getSubmissions(userId?: number, role?: string): SubmissionRecord[] {
+    let list = [...this.data.submissions];
+    if (role !== 'admin' && userId) {
+      list = list.filter(s => s.client_id === userId);
+    }
+    return list.map(s => {
+      const client = this.getUserById(s.client_id);
+      const material = s.material_id ? this.getMaterialById(s.material_id) : null;
+      return {
+        ...s,
+        client_name: client ? client.name : s.client_name || 'Client',
+        client_email: client ? client.email : s.client_email || '',
+        material_title: material ? material.title : s.material_title || null
+      };
+    }).sort((a, b) => b.id - a.id);
+  }
+
+  public getSubmissionById(id: number): SubmissionRecord | null {
+    return this.data.submissions.find(s => s.id === id) || null;
+  }
+
+  public createSubmission(input: Partial<SubmissionRecord>): SubmissionRecord {
+    const nextId = this.data.submissions.length > 0
+      ? Math.max(...this.data.submissions.map(s => s.id)) + 1
+      : 1;
+
+    const client = input.client_id ? this.getUserById(input.client_id) : null;
+    const material = input.material_id ? this.getMaterialById(input.material_id) : null;
+
+    const newSub: SubmissionRecord = {
+      id: nextId,
+      client_id: input.client_id || 1,
+      client_name: client ? client.name : 'Client',
+      client_email: client ? client.email : '',
+      material_id: input.material_id || null,
+      material_title: material ? material.title : null,
+      file_name: input.file_name || 'submission.pdf',
+      file_mime: input.file_mime || 'application/pdf',
+      file_data: input.file_data || '',
+      status: 'pending',
+      feedback: '',
+      submitted_at: new Date().toISOString(),
+      reviewed_at: null
+    };
+
+    this.data.submissions.push(newSub);
+    this.saveData(this.data);
+    return newSub;
+  }
+
+  public reviewSubmission(id: number, status: 'approved' | 'rejected', feedback: string): SubmissionRecord | null {
+    const idx = this.data.submissions.findIndex(s => s.id === id);
+    if (idx === -1) return null;
+
+    this.data.submissions[idx].status = status;
+    this.data.submissions[idx].feedback = feedback;
+    this.data.submissions[idx].reviewed_at = new Date().toISOString();
+
+    this.saveData(this.data);
+    return this.data.submissions[idx];
   }
 }
 

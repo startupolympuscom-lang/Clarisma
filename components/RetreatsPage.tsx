@@ -32,7 +32,17 @@ interface FormField {
 }
 
 const ReservationForm = ({ retreat, onClose }: { retreat: Retreat, onClose: () => void }) => {
-  const customFields: FormField[] = retreat.custom_form_schema ? JSON.parse(retreat.custom_form_schema) : [];
+  let customFields: FormField[] = [];
+  if (retreat.custom_form_schema) {
+    try {
+      customFields = typeof retreat.custom_form_schema === 'string'
+        ? JSON.parse(retreat.custom_form_schema)
+        : retreat.custom_form_schema;
+      if (!Array.isArray(customFields)) customFields = [];
+    } catch {
+      customFields = [];
+    }
+  }
   
   const [formData, setFormData] = useState({
     name: '',
@@ -228,11 +238,21 @@ const RetreatsPage: React.FC<RetreatsPageProps> = ({ onBack, onAdminAccess }) =>
       const res = await fetch('/api/retreats');
       if (res.ok) {
         const data = await res.json();
-        // Parse tags if they come back as a string
-        const parsedData = data.map((r: any) => ({
-          ...r,
-          tags: typeof r.tags === 'string' ? JSON.parse(r.tags) : (r.tags || [])
-        }));
+        // Parse tags safely whether stringified JSON, array, or comma-separated
+        const parsedData = (data || []).map((r: any) => {
+          let tags = r.tags;
+          if (typeof tags === 'string') {
+            try {
+              tags = JSON.parse(tags);
+            } catch {
+              tags = tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+            }
+          }
+          return {
+            ...r,
+            tags: Array.isArray(tags) ? tags : []
+          };
+        });
         setRetreats(parsedData);
       }
     } catch (err) {
